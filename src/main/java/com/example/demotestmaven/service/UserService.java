@@ -22,6 +22,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Collections;
 import java.util.HashSet;
 
 @Service
@@ -56,8 +57,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserDTO> getUsersByCreatedAtBefore(String dateTimeBefore) {        
-        // LocalDateTime dateTime;
-        LocalDateTime dateTime = LocalDateTime.parse(dateTimeBefore, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+        LocalDateTime dateTime;
+        //LocalDateTime dateTime = LocalDateTime.parse(dateTimeBefore, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         
         // Validate date time format
         try {
@@ -70,7 +71,8 @@ public class UserService {
 
         // Validate if users is empty or null
         if (users.isEmpty() || users == null) {
-            throw new ResourceNotFoundException("No users found with createdAt before: " + dateTimeBefore);
+            //throw new ResourceNotFoundException("No users found with createdAt before: " + dateTimeBefore);
+            return Collections.emptyList();
         }
 
         return users.stream()

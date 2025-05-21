@@ -17,6 +17,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -235,18 +236,17 @@ class UserServiceTest {
         // List<UserDTO> result = userService.getUsersByCreatedAtBefore("2025-02-20");
 
         // // Assert
-        assertThrows(ResourceNotFoundException.class, 
-            () -> userService.getUsersByCreatedAtBefore("2025-02-20"));
+        // assertThrows(ResourceNotFoundException.class, () -> userService.getUsersByCreatedAtBefore("2025-02-20"));
+        assertEquals(Collections.emptyList(), userService.getUsersByCreatedAtBefore("2025-02-20"));        
     }
     
     @Test
     void getUsersByCreatedAtBefore_WhenInvalidDateTimeFormat_ShouldThrowException() {
         // Arrange (no need to mock)
-        when(userRepository.findByCreatedAtBefore(any(LocalDateTime.class))).thenReturn(Arrays.asList());
+        // when(userRepository.findByCreatedAtBefore(any(LocalDateTime.class))).thenReturn(Arrays.asList());
 
         // Act & Assert
-        assertThrows(ValidationException.class,
-            () -> userService.getUsersByCreatedAtBefore("invalid-date-format"));
+        assertThrows(ValidationException.class, () -> userService.getUsersByCreatedAtBefore("invalid-date-format"));
     }   
     
 } 
