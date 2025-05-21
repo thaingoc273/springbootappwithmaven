@@ -144,4 +144,5 @@ class UserControllerTest {
         assertNotNull(response);
         assertEquals(200, response.getStatusCode().value());
     }   
+    // Test for Bad request
 } 

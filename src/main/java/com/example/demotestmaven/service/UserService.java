@@ -52,9 +52,12 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
     }
 
+    // Get users by createdAt before a given date time
+
     @Transactional(readOnly = true)
     public List<UserDTO> getUsersByCreatedAtBefore(String dateTimeBefore) {        
-        LocalDateTime dateTime;
+        // LocalDateTime dateTime;
+        LocalDateTime dateTime = LocalDateTime.parse(dateTimeBefore, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
         
         // Validate date time format
         try {

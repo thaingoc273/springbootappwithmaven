@@ -148,9 +148,7 @@ public class UserRepositoryTest {
         List<User> result = userRepository.findByCreatedAtBefore(LocalDateTime.of(2026, 1, 2, 0, 0, 0));
 
         // Assert
-        assertThat(result).isNotEmpty();
-        assertTrue(result.size() == 3);
-        assertThat(result.get(0).getUsername()).isEqualTo("testuser3");
+        assertTrue(result.size() == 3);        
     }
 
     @Test

@@ -2,6 +2,9 @@ package com.example.demotestmaven.service;
 
 import com.example.demotestmaven.dto.UserDTO;
 import com.example.demotestmaven.entity.User;
+import com.example.demotestmaven.exception.ResourceNotFoundException;
+import com.example.demotestmaven.exception.UnauthorizedException;
+import com.example.demotestmaven.exception.ValidationException;
 import com.example.demotestmaven.entity.Role;
 import com.example.demotestmaven.repository.UserRepository;
 import com.example.demotestmaven.repository.RoleRepository;
@@ -197,7 +200,7 @@ class UserServiceTest {
         updateDTO.setEmail("updated@example.com");
 
         // Act & Assert
-        assertThrows(RuntimeException.class, // Need to change to UnauthorizedException
+        assertThrows(UnauthorizedException.class, // Need to change to UnauthorizedException
             () -> userService.updateUser("regular", "testuser", updateDTO));
         verify(userRepository, times(1)).findByUsername("regular");
         verify(userRepository, times(1)).findByUsername("testuser");
@@ -217,6 +220,9 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUser.getUsername(), result.get(0).getUsername());
+        assertEquals(testUser.getEmail(), result.get(0).getEmail());
+        assertEquals(testUser.getCreatedAt(), result.get(0).getCreatedAt());
+        assertEquals(testUser.getUpdatedAt(), result.get(0).getUpdatedAt());
         verify(userRepository, times(1)).findByCreatedAtBefore(LocalDateTime.of(2025, 02, 20, 0, 0, 0));
     }  
 
@@ -229,8 +235,18 @@ class UserServiceTest {
         // List<UserDTO> result = userService.getUsersByCreatedAtBefore("2025-02-20");
 
         // // Assert
-        assertThrows(com.example.demotestmaven.exception.ResourceNotFoundException.class, 
+        assertThrows(ResourceNotFoundException.class, 
             () -> userService.getUsersByCreatedAtBefore("2025-02-20"));
-    }    
+    }
+    
+    @Test
+    void getUsersByCreatedAtBefore_WhenInvalidDateTimeFormat_ShouldThrowException() {
+        // Arrange (no need to mock)
+        when(userRepository.findByCreatedAtBefore(any(LocalDateTime.class))).thenReturn(Arrays.asList());
+
+        // Act & Assert
+        assertThrows(ValidationException.class,
+            () -> userService.getUsersByCreatedAtBefore("invalid-date-format"));
+    }   
     
 } 
