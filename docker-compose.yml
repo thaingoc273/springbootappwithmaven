@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0.42
+    container_name: demotestmaven-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: demotestmaven
+      MYSQL_USER: demouser
+      MYSQL_PASSWORD: demopassword
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - demotestmaven-network
+
+volumes:
+  mysql-data:
+    driver: local
+
+networks:
+  demotestmaven-network:
+    driver: bridge 
