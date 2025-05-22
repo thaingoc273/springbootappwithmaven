@@ -31,10 +31,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles WHERE u.email = :email")
     Optional<User> findByEmailWithRoles(@Param("email") String email);
     
-    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles WHERE u.createdAt <= :dateTimeBefore")
-    List<User> findByCreatedAtBefore(@Param("dateTimeBefore") LocalDateTime dateTimeBefore);
-
-    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles WHERE u.createdAt >= :dateTimeAfter")
-    List<User> findByCreatedAtAfter(@Param("dateTimeAfter") LocalDateTime dateTimeAfter);
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.roles WHERE u.createdAt <= :dateTimeBefore AND u.createdAt >= :dateTimeAfter")
+    List<User> findByCreatedAtBeforeAndAfter(@Param("dateTimeBefore") LocalDateTime dateTimeBefore, @Param("dateTimeAfter") LocalDateTime dateTimeAfter);
   
 } 

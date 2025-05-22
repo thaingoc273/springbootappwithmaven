@@ -12,7 +12,7 @@ import org.springframework.http.HttpStatus;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/users")
 public class UserController {
 
     @Autowired
@@ -36,8 +36,12 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(currentUsername, username, userDTO));
     }
 
-    @GetMapping("/date/{dateTimeBefore}")
-    public ResponseEntity<List<UserDTO>> getUsersByCreatedAtBefore(@PathVariable String dateTimeBefore) {
-        return ResponseEntity.ok(userService.getUsersByCreatedAtBefore(dateTimeBefore));
+    @GetMapping("/")
+    public ResponseEntity<List<UserDTO>> getUsersByCreatedAtBeforeAndAfter(        
+        @RequestHeader("X-Current-User") String currentUsername,
+        @RequestParam(required = false, defaultValue = "2099-01-01", value = "before") String beforeDate,
+        @RequestParam(required = false, defaultValue = "1999-01-01", value = "after") String afterDate
+        ) {
+        return ResponseEntity.ok(userService.getUsersByCreatedAtBeforeAndAfter(currentUsername,beforeDate, afterDate));
     }
 } 

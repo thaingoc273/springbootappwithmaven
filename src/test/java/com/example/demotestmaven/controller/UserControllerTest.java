@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 class UserControllerTest {
@@ -31,6 +32,10 @@ class UserControllerTest {
 
     private UserDTO testUser;
     private List<UserDTO> testUsers;
+
+    private String currentUsername = "testuser";
+    private String dateTimeBefore = "2025-02-30";
+    private String dateTimeAfter = "2025-02-20";
 
     @BeforeEach
     void setUp() {
@@ -49,8 +54,8 @@ class UserControllerTest {
         RoleDTO testRole = new RoleDTO();
         testRole.setId(UUID.randomUUID().toString());
         testRole.setUsername("testuser");
-        testRole.setRolecode("testrole");
-        testRole.setRoletype("testroletype");
+        testRole.setRolecode("ADMIN");
+        testRole.setRoletype("SYSTEM_ADMIN");
         testRole.setCreatedAt(LocalDateTime.now());
         testRole.setUpdatedAt(LocalDateTime.now());
         testUser.setRoles(Arrays.asList(testRole));
@@ -115,34 +120,32 @@ class UserControllerTest {
     }
 
     @Test
-    void getUsersByCreatedAtBefore_ShouldReturnListOfUsers() {
+    void getUsersByCreatedAtBeforeAndAfter_WhenValidateTimeBeforeAndAfter_ShouldReturnListOfUsers() {
         // Arrange
-        String dateTimeBefore = "2025-02-20";
-        when(userService.getUsersByCreatedAtBefore(dateTimeBefore)).thenReturn(testUsers);
+        when(userService.getUsersByCreatedAtBeforeAndAfter(currentUsername, dateTimeBefore, dateTimeAfter)).thenReturn(testUsers);
 
         // Act
-        ResponseEntity<List<UserDTO>> response = userController.getUsersByCreatedAtBefore(dateTimeBefore);
+        ResponseEntity<List<UserDTO>> response = userController.getUsersByCreatedAtBeforeAndAfter(currentUsername, dateTimeBefore, dateTimeAfter);
 
         // Assert
         assertNotNull(response);
         assertEquals(200, response.getStatusCode().value());
         assertEquals(testUsers, response.getBody());
-        verify(userService, times(1)).getUsersByCreatedAtBefore(dateTimeBefore);
-    }
-
-        
+        verify(userService, times(1)).getUsersByCreatedAtBeforeAndAfter(currentUsername, dateTimeBefore, dateTimeAfter);
+    }       
+ 
     @Test
-    void getUsersByCreatedAtBefore_ShouldReturnNoUsersFound() {
+    void getUsersByCreatedAtBeforeAndAfter_WhenInvalidateTimeBeforeAndAfter_ShouldThrowValidationException() {
         // Arrange
-        String dateTimeBefore = "2025-02-20";
-        when(userService.getUsersByCreatedAtBefore(dateTimeBefore)).thenReturn(Collections.emptyList());
-        
-        // Act
-        ResponseEntity<List<UserDTO>> response = userController.getUsersByCreatedAtBefore(dateTimeBefore);
 
-        // Assert
-        assertNotNull(response);
-        assertEquals(200, response.getStatusCode().value());
-    }   
-    // Test for Bad request
-} 
+        when(userService.getUsersByCreatedAtBeforeAndAfter(currentUsername, dateTimeBefore, dateTimeAfter))
+            .thenThrow(new ValidationException("Invalid date time format, please use yyyy-MM-dd"));
+
+        // Act & Assert
+        ValidationException exception = assertThrows(ValidationException.class, 
+            () -> userController.getUsersByCreatedAtBeforeAndAfter(currentUsername, dateTimeBefore, dateTimeAfter));
+        
+        assertEquals("Invalid date time format, please use yyyy-MM-dd", exception.getMessage());
+        verify(userService, times(1)).getUsersByCreatedAtBeforeAndAfter(currentUsername, dateTimeBefore, dateTimeAfter);
+    }
+}

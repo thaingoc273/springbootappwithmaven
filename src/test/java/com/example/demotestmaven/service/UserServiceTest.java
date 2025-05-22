@@ -2,7 +2,6 @@ package com.example.demotestmaven.service;
 
 import com.example.demotestmaven.dto.UserDTO;
 import com.example.demotestmaven.entity.User;
-import com.example.demotestmaven.exception.ResourceNotFoundException;
 import com.example.demotestmaven.exception.UnauthorizedException;
 import com.example.demotestmaven.exception.ValidationException;
 import com.example.demotestmaven.entity.Role;
@@ -15,7 +14,10 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -44,6 +46,12 @@ class UserServiceTest {
     private UserDTO testUserDTO;
     private Role adminRole;
     private Role managerRole;
+    
+    private String adminUsername = "ngoc";
+    private String normalUsername = "phuong";
+    private String dateBefore = "2025-05-30";
+    private String dateAfter = "2025-05-15";
+    private String invalidDate = "invalid-date-format";    
 
     @BeforeEach
     void setUp() {
@@ -56,8 +64,7 @@ class UserServiceTest {
         testUser.setEmail("test@example.com");
         testUser.setPassword("encodedPassword");
         testUser.setCreatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
-        testUser.setUpdatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
-        
+        testUser.setUpdatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));        
 
         // Create test user DTO
         testUserDTO = new UserDTO();
@@ -97,8 +104,6 @@ class UserServiceTest {
         managerRole.setCreatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
         managerRole.setUpdatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
 
-        // Create test users list
-        List<User> testUsers = Arrays.asList(testUser);
     }
 
     @Test
@@ -210,12 +215,13 @@ class UserServiceTest {
 
 
     @Test
-    void getUsersByCreatedAtBefore_ShouldReturnListOfUsers() {
+    void getUsersByCreatedAtBefore_WhenNormal_ShouldReturnListOfUsers() {
         // Arrange
-        when(userRepository.findByCreatedAtBefore(any(LocalDateTime.class))).thenReturn(Arrays.asList(testUser));
+        when(roleRepository.findByUser_Username(adminUsername)).thenReturn(Arrays.asList(adminRole));
+        when(userRepository.findByCreatedAtBeforeAndAfter(convertToLocalDateTime(dateBefore), convertToLocalDateTime(dateAfter))).thenReturn(Arrays.asList(testUser));
 
         // Act
-        List<UserDTO> result = userService.getUsersByCreatedAtBefore("2025-02-20");
+        List<UserDTO> result = userService.getUsersByCreatedAtBeforeAndAfter(adminUsername, dateBefore, dateAfter);
 
         // Assert
         assertNotNull(result);
@@ -224,29 +230,51 @@ class UserServiceTest {
         assertEquals(testUser.getEmail(), result.get(0).getEmail());
         assertEquals(testUser.getCreatedAt(), result.get(0).getCreatedAt());
         assertEquals(testUser.getUpdatedAt(), result.get(0).getUpdatedAt());
-        verify(userRepository, times(1)).findByCreatedAtBefore(LocalDateTime.of(2025, 02, 20, 0, 0, 0));
-    }  
+        verify(userRepository, times(1)).findByCreatedAtBeforeAndAfter(convertToLocalDateTime(dateBefore), convertToLocalDateTime(dateAfter));        
+    }
 
     @Test
-    void getUsersByCreatedAtBefore_ShouldReturnEmptyList() {
+    void getUsersByCreatedAtBefore_WhenNoUserFound_ShouldReturnEmptyList() {
         // Arrange
-        when(userRepository.findByCreatedAtBefore(any(LocalDateTime.class))).thenReturn(Arrays.asList());
+        when(roleRepository.findByUser_Username(adminUsername)).thenReturn(Arrays.asList(adminRole));
+        when(userRepository.findByCreatedAtBeforeAndAfter(convertToLocalDateTime(dateBefore), convertToLocalDateTime(dateAfter))).thenReturn(Collections.emptyList());
 
-        // // Act
-        // List<UserDTO> result = userService.getUsersByCreatedAtBefore("2025-02-20");
+        // Act
+        List<UserDTO> result = userService.getUsersByCreatedAtBeforeAndAfter(adminUsername, dateBefore, dateAfter);
 
-        // // Assert
-        // assertThrows(ResourceNotFoundException.class, () -> userService.getUsersByCreatedAtBefore("2025-02-20"));
-        assertEquals(Collections.emptyList(), userService.getUsersByCreatedAtBefore("2025-02-20"));        
+        // Assert
+        assertEquals(Collections.emptyList(), result);
+        verify(userRepository, times(1)).findByCreatedAtBeforeAndAfter(convertToLocalDateTime(dateBefore), convertToLocalDateTime(dateAfter));
     }
     
     @Test
     void getUsersByCreatedAtBefore_WhenInvalidDateTimeFormat_ShouldThrowException() {
-        // Arrange (no need to mock)
-        // when(userRepository.findByCreatedAtBefore(any(LocalDateTime.class))).thenReturn(Arrays.asList());
-
-        // Act & Assert
-        assertThrows(ValidationException.class, () -> userService.getUsersByCreatedAtBefore("invalid-date-format"));
-    }   
+        // Arrange
+        when(roleRepository.findByUser_Username(adminUsername)).thenReturn(Arrays.asList(adminRole));
+        // Act & Assert     
+        assertThrows(ValidationException.class, () -> userService.getUsersByCreatedAtBeforeAndAfter(adminUsername, invalidDate, dateAfter));
+        verify(roleRepository, times(1)).findByUser_Username(adminUsername);
+    }
     
+    @Test
+    void getUsersByCreatedAtBefore_WhenCurrentUserIsNotAdmin_ShouldThrowException() {
+        // Arrange
+        when(roleRepository.findByUser_Username(normalUsername)).thenReturn(Arrays.asList(managerRole));
+        when(userRepository.findByCreatedAtBeforeAndAfter(convertToLocalDateTime(dateBefore), convertToLocalDateTime(dateAfter))).thenReturn(Arrays.asList(testUser));
+        
+        // Act & Assert
+        assertThrows(UnauthorizedException.class, () -> userService.getUsersByCreatedAtBeforeAndAfter(normalUsername, dateBefore, dateAfter));
+        verify(roleRepository, times(1)).findByUser_Username(normalUsername); 
+        verify(userRepository, times(0)).findByCreatedAtBeforeAndAfter(convertToLocalDateTime(dateBefore), convertToLocalDateTime(dateAfter));      
+    }
+
+    private LocalDateTime convertToLocalDateTime(String time) {         
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            return LocalDate.parse(time, formatter).atStartOfDay();
+        } catch (DateTimeParseException ex)
+        {
+            throw new ValidationException(String.format("Invalid date time format, please use yyyy-MM-dd"));
+        }
+    }
 } 

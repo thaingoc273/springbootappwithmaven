@@ -1,13 +1,15 @@
 package com.example.demotestmaven.repository;
 
 import com.example.demotestmaven.entity.User;
-import com.example.demotestmaven.config.TestConfig;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,8 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
-@Import(TestConfig.class)
+@ActiveProfiles("test")
 @Transactional
+//@Sql(scripts = "/data-test.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 public class UserRepositoryTest {
 
     @Autowired
@@ -27,58 +30,66 @@ public class UserRepositoryTest {
     @Autowired
     private UserRepository userRepository;
 
-    @Test
-    public void testFindAll() {
+    private String usernameTest = "testuser";
+    private String passwordTest = "password123";
+    private String emailTest = "test@example.com";
+
+    private String nonexistentEmail = "nonexistent@example.com";
+    private String nonexistentUsername = "nonexistentusername";
+
+    private String usernameDuplicate = "duplicate";
+    private String passwordDuplicate1 = "password456";
+    private String passwordDuplicate2 = "password789";
+    private String emailDuplicate1 = "user1@example.com";
+    private String emailDuplicate2 = "user2@example.com";
+    
+    private LocalDateTime timeBefore = LocalDateTime.of(2026, 1, 1, 0, 0, 0);
+    private LocalDateTime timeAfter = LocalDateTime.of(2025, 1, 2, 0, 0, 0);
+   
+    private LocalDateTime timeBeforeEmptyReturn = LocalDateTime.of(2022, 1, 1, 0, 0, 0);
+    private LocalDateTime timeAfterEmptyReturn = LocalDateTime.of(2020, 1, 2, 0, 0, 0);
+
+    @BeforeEach
+    void setUp() {
+        // entityManager.clear();
+
         // Create a test user
         User user = new User();
-        user.setUsername("testuser");
-        user.setPassword("password123");
-        user.setEmail("test@example.com");
+        user.setUsername(usernameTest);
+        user.setPassword(passwordTest);
+        user.setEmail(emailTest);
         entityManager.persist(user);
-        entityManager.flush();
+        entityManager.flush();        
+    }
 
-        // Test the repository method
+
+    @Test
+    public void testFindAll() {
+
         List<User> result = userRepository.findAll();
-
         // Verify the result
         assertThat(result).isNotEmpty();
-        assertThat(result.size()).isEqualTo(3);        
+        assertThat(result.size()).isEqualTo(3); // 2 from data-test.sql + 1 from this test
     }   
-
-    
 
     @Test
     public void testFindByUsername() {
-        // Create a test user
-        User user = new User();
-        user.setUsername("testuser");
-        user.setPassword("password123");
-        user.setEmail("test@example.com");
-        entityManager.persist(user);
-        entityManager.flush();
 
         // Test the repository method
-        Optional<User> found = userRepository.findByUsername("testuser");
+        Optional<User> found = userRepository.findByUsername(usernameTest);
 
         // Verify the result
         assertThat(found).isPresent();
-        assertThat(found.get().getUsername()).isEqualTo("testuser");
-        assertThat(found.get().getEmail()).isEqualTo("test@example.com");
+        assertThat(found.get().getUsername()).isEqualTo(usernameTest);
+        assertThat(found.get().getEmail()).isEqualTo(emailTest);
     }
 
     @Test
     public void testExistsByUsername() {
-        // Create a test user
-        User user = new User();
-        user.setUsername("testuser");
-        user.setPassword("password123");
-        user.setEmail("test@example.com");
-        entityManager.persist(user);
-        entityManager.flush();
 
         // Test the repository method
-        boolean exists = userRepository.existsByUsername("testuser");
-        boolean notExists = userRepository.existsByUsername("nonexistent");
+        boolean exists = userRepository.existsByUsername(usernameTest);
+        boolean notExists = userRepository.existsByUsername(nonexistentUsername);
 
         // Verify the results
         assertThat(exists).isTrue();
@@ -87,17 +98,10 @@ public class UserRepositoryTest {
 
     @Test
     public void testExistsByEmail() {
-        // Create a test user
-        User user = new User();
-        user.setUsername("testuser");
-        user.setPassword("password123");
-        user.setEmail("test@example.com");
-        entityManager.persist(user);
-        entityManager.flush();
-
+       
         // Test the repository method
-        boolean exists = userRepository.existsByEmail("test@example.com");
-        boolean notExists = userRepository.existsByEmail("nonexistent@example.com");
+        boolean exists = userRepository.existsByEmail(emailTest);
+        boolean notExists = userRepository.existsByEmail(nonexistentEmail);
 
         // Verify the results
         assertThat(exists).isTrue();
@@ -109,15 +113,15 @@ public class UserRepositoryTest {
     void shouldEnforceUniqueUsername() {
         // Given
         User user1 = new User();
-        user1.setUsername("duplicate");
-        user1.setPassword("password123");
-        user1.setEmail("user1@example.com");
+        user1.setUsername(usernameDuplicate);
+        user1.setPassword(passwordDuplicate1);
+        user1.setEmail(emailDuplicate1);
         userRepository.save(user1);
 
         User user2 = new User();
-        user2.setUsername("duplicate"); // Same username
-        user2.setPassword("password456");
-        user2.setEmail("user2@example.com");
+        user2.setUsername(usernameDuplicate); // Same username
+        user2.setPassword(passwordDuplicate2);
+        user2.setEmail(emailDuplicate2);
 
         // When/Then
         try {
@@ -131,44 +135,21 @@ public class UserRepositoryTest {
 
     @Test
     @Transactional
-    void findByCreatedAtBefore_ShouldReturnListOfUsers() {
-        // Arrange
-        User user1 = new User();
-        user1.setUsername("testuser3");
-        user1.setPassword("password123");
-        user1.setEmail("user3@example.com");    
-        // Set createdAt to a fixed date
-        user1.setCreatedAt(LocalDateTime.of(2020, 1, 1, 0, 0, 0));
-        user1.setUpdatedAt(LocalDateTime.of(2020, 1, 1, 0, 0, 0));
-
-        entityManager.persist(user1);
-        entityManager.flush();
-
+    void findByCreatedAtBeforeAndAfter_ShouldReturnListOfUsers() {
         // Act: query for users created before a later date
-        List<User> result = userRepository.findByCreatedAtBefore(LocalDateTime.of(2026, 1, 2, 0, 0, 0));
+        List<User> result = userRepository.findByCreatedAtBeforeAndAfter(timeBefore, timeAfter);
 
         // Assert
-        assertTrue(result.size() == 3);        
+        assertThat(result.size()).isEqualTo(3); // 2 from data.sql + 1 from this test
     }
 
     @Test
-    void findByCreatedAtBefore_ShouldReturnEmptyList() {
-        // Arrange
-        User user1 = new User();
-        user1.setUsername("testuser4");
-        user1.setPassword("password123");
-        user1.setEmail("user4@example.com");
-        user1.setCreatedAt(LocalDateTime.of(2025, 2, 20, 1, 0, 0));
-        user1.setUpdatedAt(LocalDateTime.of(2025, 2, 20, 1, 0, 0));
-
-        entityManager.persist(user1);
-        entityManager.flush();      
+    void findByCreatedAtBeforeAndAfter_WhenAfterIsBeforeBefore_ShouldReturnEmptyList() { 
 
         // Act
-        List<User> result = userRepository.findByCreatedAtBefore(LocalDateTime.of(2025, 2, 10, 1, 0, 0));
+        List<User> result = userRepository.findByCreatedAtBeforeAndAfter(timeBeforeEmptyReturn, timeAfterEmptyReturn);
 
         // Assert
         assertThat(result).isEmpty();
     }  
-
 } 

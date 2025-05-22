@@ -17,7 +17,8 @@ import org.springframework.test.context.jdbc.Sql;
 @DataJpaTest
 //@TestPropertySource(locations = "classpath:application-test.yml")
 @ActiveProfiles("test")
-@Sql(scripts = {"/schema.sql", "/data.sql"})
+//@Sql(scripts = {"/data-test.sql"})
+@Transactional
 public class UserRepositoryH2Test {
     
     @Autowired
@@ -49,6 +50,7 @@ public class UserRepositoryH2Test {
     }
 
     @Test
+    @Transactional
     void shouldFindAllUsers() {
         // When
         List<User> users = userRepository.findAll();
@@ -56,7 +58,6 @@ public class UserRepositoryH2Test {
         // Then
         assertThat(users).isNotEmpty();
         assertThat(users.size()).isEqualTo(2);        
-
     }
 
     @Test

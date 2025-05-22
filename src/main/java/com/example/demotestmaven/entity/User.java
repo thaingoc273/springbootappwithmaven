@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 // import java.util.Set;
 import java.util.UUID;
+
+import org.hibernate.annotations.GenericGenerator;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
@@ -16,7 +18,9 @@ import org.hibernate.annotations.UuidGenerator;
 public class User {
     
     @Id
-    @Column(columnDefinition = "VARCHAR(36)", nullable = false)
+    @GeneratedValue(generator = "uuid2")
+    @GenericGenerator(name = "uuid2", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(columnDefinition = "VARCHAR(36)", nullable = false, updatable = false)
     private String id;
 
     @Column(nullable = false, unique = true, length = 50)
@@ -39,7 +43,7 @@ public class User {
 
     @PrePersist
     protected void onCreate() {
-        id = UUID.randomUUID().toString();
+        //id = UUID.randomUUID().toString();
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }

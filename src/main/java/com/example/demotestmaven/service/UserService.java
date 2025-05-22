@@ -56,30 +56,21 @@ public class UserService {
     // Get users by createdAt before a given date time
 
     @Transactional(readOnly = true)
-    public List<UserDTO> getUsersByCreatedAtBefore(String dateTimeBefore) {        
-        LocalDateTime dateTime;
-        //LocalDateTime dateTime = LocalDateTime.parse(dateTimeBefore, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
-        
-        // Validate date time format
-        try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            dateTime = LocalDate.parse(dateTimeBefore, formatter).atStartOfDay();
-        } catch (DateTimeParseException e) {
-            throw new ValidationException("Invalid date time format, please use yyyy-MM-dd");        
-        }        
-        List<User> users = userRepository.findByCreatedAtBefore(dateTime);      
-
-        // Validate if users is empty or null
-        if (users.isEmpty() || users == null) {
-            //throw new ResourceNotFoundException("No users found with createdAt before: " + dateTimeBefore);
-            return Collections.emptyList();
+    public List<UserDTO> getUsersByCreatedAtBeforeAndAfter(String currentUsername, String timeBefore, String timeAfter) {        
+                
+        if (!isCurrentUserAdmin(currentUsername)) {
+            throw new UnauthorizedException("You don't have permission to access this resource");
         }
+        validateTimeBeforeAndAfter(timeBefore, timeAfter);
+
+        LocalDateTime dateTimeBefore = convertToLocalDateTime(timeBefore, "timeBefore");
+        LocalDateTime dateTimeAfter = convertToLocalDateTime(timeAfter, "timeAfter");
+        List<User> users = userRepository.findByCreatedAtBeforeAndAfter(dateTimeBefore, dateTimeAfter);      
 
         return users.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
-
 
     @Transactional
     public UserDTO updateUser(String currentUsername, String targetUsername, UserDTO userDTO) {
@@ -205,10 +196,6 @@ public class UserService {
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
         
-        // // Explicitly fetch roles for this user
-        // Set<String> roletypes = roleRepository.findByUser_Username(user.getUsername()).stream()
-        //     .map(role -> role.getRoletype())
-        //     .collect(Collectors.toSet());
         
         Set<String> roletypes = user.getRoles().stream()
             .map(role -> role.getRoletype())
@@ -233,5 +220,26 @@ public class UserService {
         dto.setRoles(roles);
         
         return dto;
+    }
+
+    private void validateTimeBeforeAndAfter(String timeBefore, String timeAfter) {
+        if (convertToLocalDateTime(timeBefore, "timeBefore").isBefore(convertToLocalDateTime(timeAfter, "timeAfter"))) {
+            throw new ValidationException("Time before must be before time after");
+        }        
+    }
+
+    private boolean isCurrentUserAdmin(String currentUsername) {
+        return roleRepository.findByUser_Username(currentUsername).stream()
+                .anyMatch(role -> role.getRolecode().equals("ADMIN"));
+    }
+
+    private LocalDateTime convertToLocalDateTime(String time, String typeDateTime) {         
+        try {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            return LocalDate.parse(time, formatter).atStartOfDay();
+        } catch (DateTimeParseException ex)
+        {
+            throw new ValidationException(String.format("Invalid date time format for %s, please use yyyy-MM-dd", typeDateTime));
+        }
     }
 } 

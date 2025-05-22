@@ -1,3 +1,7 @@
+-- Delete all data from role and users table
+DELETE FROM role;
+DELETE FROM users;
+
 -- Insert test users
 INSERT INTO users (id, username, password, email) VALUES
 (RANDOM_UUID(), 'testuser1', '$2a$10$xn3LI/AjqicFYZFruSwve.681477XaVNaUQbr1gioaWPn4t1KsnmG', 'test1@example.com'),
