@@ -10,6 +10,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -22,6 +24,12 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class UserControllerTest {
 
     @Mock
@@ -147,5 +155,11 @@ class UserControllerTest {
         
         assertEquals("Invalid date time format, please use yyyy-MM-dd", exception.getMessage());
         verify(userService, times(1)).getUsersByCreatedAtBeforeAndAfter(currentUsername, dateTimeBefore, dateTimeAfter);
+    }
+
+    @Test
+    void getAllUsers_WhenNormal_ShouldReturnListOfUsers_Full_Integration_Test(){
+        
+
     }
 }

@@ -13,8 +13,7 @@ public class Role {
     
     @Id
     @Column(columnDefinition = "VARCHAR(36)", nullable = false)
-    private String id;
-  
+    private String id; 
 
     @Column(nullable = false, length = 50)
     private String rolecode;

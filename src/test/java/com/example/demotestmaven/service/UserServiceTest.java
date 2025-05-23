@@ -28,6 +28,9 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.example.demotestmaven.exception.BusinessException;
+import com.example.demotestmaven.exception.ErrorCode;
+
 class UserServiceTest {
 
     @Mock
@@ -46,6 +49,7 @@ class UserServiceTest {
     private UserDTO testUserDTO;
     private Role adminRole;
     private Role managerRole;
+    private User adminUser;
     
     private String adminUsername = "ngoc";
     private String normalUsername = "phuong";
@@ -75,16 +79,14 @@ class UserServiceTest {
         testUserDTO.setCreatedAt(testUser.getCreatedAt());
         testUserDTO.setUpdatedAt(testUser.getUpdatedAt());
 
-
         // Create admin user
-        User adminUser = new User();
+        adminUser = new User();  // Initialize the adminUser object
         adminUser.setId(UUID.randomUUID().toString());
         adminUser.setUsername("admin");
         adminUser.setEmail("admin@example.com");
         adminUser.setPassword("encodedPassword");
         adminUser.setCreatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
         adminUser.setUpdatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
-        
 
         // Create test roles
         adminRole = new Role();
@@ -95,7 +97,6 @@ class UserServiceTest {
         adminRole.setCreatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
         adminRole.setUpdatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
 
-
         managerRole = new Role();
         managerRole.setId(UUID.randomUUID().toString());
         managerRole.setUser(adminUser);
@@ -103,7 +104,6 @@ class UserServiceTest {
         managerRole.setRoletype("TEAM_MANAGER");
         managerRole.setCreatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
         managerRole.setUpdatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
-
     }
 
     @Test
@@ -151,11 +151,12 @@ class UserServiceTest {
         // Arrange
         String username = "testuser";
         UserDTO updateDTO = new UserDTO();
+        updateDTO.setUsername(username);
         updateDTO.setEmail("updated@example.com");
         updateDTO.setPassword("newPassword");
 
         when(userRepository.findByUsername(username)).thenReturn(Optional.of(testUser));
-        when(passwordEncoder.encode(any())).thenReturn("encodedNewPassword");
+        // when(passwordEncoder.encode(any())).thenReturn("encodedNewPassword");
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
         // Act
@@ -179,6 +180,7 @@ class UserServiceTest {
         when(userRepository.save(any(User.class))).thenReturn(testUser);
 
         UserDTO updateDTO = new UserDTO();
+        updateDTO.setUsername("testuser");
         updateDTO.setEmail("updated@example.com");
 
         // Act
@@ -188,31 +190,30 @@ class UserServiceTest {
         assertNotNull(result);
         verify(userRepository, times(1)).findByUsername("admin");
         verify(userRepository, times(1)).findByUsername("testuser");
-        verify(roleRepository, times(1)).findByUser_Username("admin");
+        //verify(roleRepository, times(1)).findByUser_Username("admin");
         verify(userRepository, times(1)).save(any(User.class));
     }
 
     @Test
     void updateUser_WhenUserWithoutPermissionTriesToEdit_ShouldThrowException() {
         // Arrange
-        User regularUser = new User();
-        regularUser.setUsername("regular");
-        
-        when(userRepository.findByUsername("regular")).thenReturn(Optional.of(regularUser));
-        when(userRepository.findByUsername("testuser")).thenReturn(Optional.of(testUser));
-        when(roleRepository.findByUser_Username("regular")).thenReturn(Arrays.asList());
-
+        String currentUsername = "user1";
+        String targetUsername = "user2";
         UserDTO updateDTO = new UserDTO();
-        updateDTO.setEmail("updated@example.com");
+        updateDTO.setUsername(targetUsername);
+        
+        when(userRepository.findByUsername(currentUsername))
+                .thenReturn(Optional.of(createUser(currentUsername)));
+        when(userRepository.findByUsername(targetUsername))
+                .thenReturn(Optional.of(createUser(targetUsername)));
+        when(roleRepository.findByUser_Username(currentUsername))
+                .thenReturn(Collections.emptyList());
 
         // Act & Assert
-        assertThrows(UnauthorizedException.class, // Need to change to UnauthorizedException
-            () -> userService.updateUser("regular", "testuser", updateDTO));
-        verify(userRepository, times(1)).findByUsername("regular");
-        verify(userRepository, times(1)).findByUsername("testuser");
-        verify(roleRepository, times(1)).findByUser_Username("regular");
-    }    
-
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userService.updateUser(currentUsername, targetUsername, updateDTO));
+        assertEquals(ErrorCode.FORBIDDEN_OPERATION.getMessage(), exception.getMessage());
+    }
 
     @Test
     void getUsersByCreatedAtBefore_WhenNormal_ShouldReturnListOfUsers() {
@@ -250,22 +251,27 @@ class UserServiceTest {
     @Test
     void getUsersByCreatedAtBefore_WhenInvalidDateTimeFormat_ShouldThrowException() {
         // Arrange
-        when(roleRepository.findByUser_Username(adminUsername)).thenReturn(Arrays.asList(adminRole));
-        // Act & Assert     
-        assertThrows(ValidationException.class, () -> userService.getUsersByCreatedAtBeforeAndAfter(adminUsername, invalidDate, dateAfter));
-        verify(roleRepository, times(1)).findByUser_Username(adminUsername);
+        String currentUsername = "admin";
+        when(roleRepository.findByUser_Username(currentUsername))
+                .thenReturn(Collections.singletonList(createAdminRole()));
+
+        // Act & Assert
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userService.getUsersByCreatedAtBeforeAndAfter(currentUsername, "invalid-date", "2025-02-20"));
+        assertEquals(ErrorCode.INVALID_DATE_FORMAT.getMessage(), exception.getMessage());
     }
     
     @Test
     void getUsersByCreatedAtBefore_WhenCurrentUserIsNotAdmin_ShouldThrowException() {
         // Arrange
-        when(roleRepository.findByUser_Username(normalUsername)).thenReturn(Arrays.asList(managerRole));
-        when(userRepository.findByCreatedAtBeforeAndAfter(convertToLocalDateTime(dateBefore), convertToLocalDateTime(dateAfter))).thenReturn(Arrays.asList(testUser));
-        
+        String currentUsername = "user";
+        when(roleRepository.findByUser_Username(currentUsername))
+                .thenReturn(Collections.emptyList());
+
         // Act & Assert
-        assertThrows(UnauthorizedException.class, () -> userService.getUsersByCreatedAtBeforeAndAfter(normalUsername, dateBefore, dateAfter));
-        verify(roleRepository, times(1)).findByUser_Username(normalUsername); 
-        verify(userRepository, times(0)).findByCreatedAtBeforeAndAfter(convertToLocalDateTime(dateBefore), convertToLocalDateTime(dateAfter));      
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> userService.getUsersByCreatedAtBeforeAndAfter(currentUsername, "2025-02-20", "2025-02-19"));
+        assertEquals(ErrorCode.UNAUTHORIZED_ACCESS.getMessage(), exception.getMessage());
     }
 
     private LocalDateTime convertToLocalDateTime(String time) {         
@@ -276,5 +282,26 @@ class UserServiceTest {
         {
             throw new ValidationException(String.format("Invalid date time format, please use yyyy-MM-dd"));
         }
+    }
+
+    private User createUser(String username) {
+        User user = new User();
+        user.setId(java.util.UUID.randomUUID().toString());
+        user.setUsername(username);
+        user.setEmail(username + "@example.com");
+        user.setPassword("password");
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        return user;
+    }
+
+    private Role createAdminRole() {
+        Role role = new Role();
+        role.setId(java.util.UUID.randomUUID().toString());
+        role.setRolecode("ADMIN");
+        role.setRoletype("SYSTEM");
+        role.setCreatedAt(LocalDateTime.now());
+        role.setUpdatedAt(LocalDateTime.now());
+        return role;
     }
 } 

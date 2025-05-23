@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.demotestmaven.entity.Role;
 import org.springframework.util.StringUtils;
 import com.example.demotestmaven.exception.ValidationException;
+import com.example.demotestmaven.exception.BusinessException;
+import com.example.demotestmaven.exception.ErrorCode;
 
 import java.util.List;
 import java.util.Set;
@@ -50,7 +52,7 @@ public class UserService {
     public UserDTO getUserByUsername(String username) {
         return userRepository.findByUsername(username)
                 .map(this::convertToDTO)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with username: " + username));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, username));
     }
 
     // Get users by createdAt before a given date time
@@ -59,12 +61,13 @@ public class UserService {
     public List<UserDTO> getUsersByCreatedAtBeforeAndAfter(String currentUsername, String timeBefore, String timeAfter) {        
                 
         if (!isCurrentUserAdmin(currentUsername)) {
-            throw new UnauthorizedException("You don't have permission to access this resource");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS);
         }
-        validateTimeBeforeAndAfter(timeBefore, timeAfter);
 
-        LocalDateTime dateTimeBefore = convertToLocalDateTime(timeBefore, "timeBefore");
-        LocalDateTime dateTimeAfter = convertToLocalDateTime(timeAfter, "timeAfter");
+        validateTimeBeforeAndAfter(timeBefore, timeAfter);
+        LocalDateTime dateTimeBefore = convertToLocalDateTime(timeBefore);
+        LocalDateTime dateTimeAfter = convertToLocalDateTime(timeAfter);
+        
         List<User> users = userRepository.findByCreatedAtBeforeAndAfter(dateTimeBefore, dateTimeAfter);      
 
         return users.stream()
@@ -76,16 +79,20 @@ public class UserService {
     public UserDTO updateUser(String currentUsername, String targetUsername, UserDTO userDTO) {
         // Validate input parameters
         validateUserUpdate(currentUsername, targetUsername, userDTO);
+        
+        if (!isCurrentUserAdmin(currentUsername) && (!currentUsername.equals(targetUsername))) {
+            throw new BusinessException(ErrorCode.FORBIDDEN_OPERATION);
+        }
 
         User currentUser = userRepository.findByUsername(currentUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Current user not found with username: " + currentUsername));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, currentUsername));
         
         User targetUser = userRepository.findByUsername(targetUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("Target user not found with username: " + targetUsername));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, targetUsername));
 
         // Check permissions
         if (!canEditUser(currentUser, targetUser)) {
-            throw new UnauthorizedException("You don't have permission to edit this user");
+            throw new BusinessException(ErrorCode.FORBIDDEN_OPERATION);
         }
 
         // Update user information
@@ -119,8 +126,8 @@ public class UserService {
         for (RoleDTO roleDTO : newRoles) {
             // Check for duplicate rolecodes
             if (!uniqueRolecodes.add(roleDTO.getRolecode())) {
-                throw new ValidationException("Duplicate role code: " + roleDTO.getRolecode() + 
-                    ". A user cannot have the same role multiple times.");
+                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, 
+                    "Duplicate role code: %s. A user cannot have the same role multiple times.", roleDTO.getRolecode());
             }
 
             // Check if role already exists
@@ -140,37 +147,42 @@ public class UserService {
     private void validateUserUpdate(String currentUsername, String targetUsername, UserDTO userDTO) {
         // Validate current username
         if (!StringUtils.hasText(currentUsername)) {
-            throw new ValidationException("Current username is required");
+            throw new BusinessException(ErrorCode.INVALID_USERNAME);
         }
 
         // Validate target username
         if (!StringUtils.hasText(targetUsername)) {
-            throw new ValidationException("Target username is required");
+            throw new BusinessException(ErrorCode.INVALID_USERNAME);
         }
 
         // Validate userDTO
         if (userDTO == null) {
-            throw new ValidationException("User data is required");
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
 
         // Validate email format if provided
         if (userDTO.getEmail() != null && !userDTO.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            throw new ValidationException("Invalid email format");
+            throw new BusinessException(ErrorCode.INVALID_EMAIL);
         }
 
         // Validate password length if provided
         if (userDTO.getPassword() != null && userDTO.getPassword().length() < 8) {
-            throw new ValidationException("Password must be at least 8 characters long");
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        // Validate target user is not the UserDTO itself
+        if (!userDTO.getUsername().equals(targetUsername)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT, "Target user is not the same as needed update user");
         }
 
         // Validate roles if provided
         if (userDTO.getRoles() != null) {
             for (RoleDTO role : userDTO.getRoles()) {
                 if (!StringUtils.hasText(role.getRolecode())) {
-                    throw new ValidationException("Role code is required for each role");
+                    throw new BusinessException(ErrorCode.INVALID_ROLE, "Role code is required for each role");
                 }
                 if (!StringUtils.hasText(role.getRoletype())) {
-                    throw new ValidationException("Role type is required for each role");
+                    throw new BusinessException(ErrorCode.INVALID_ROLE, "Role type is required for each role");
                 }
             }
         }
@@ -223,23 +235,23 @@ public class UserService {
     }
 
     private void validateTimeBeforeAndAfter(String timeBefore, String timeAfter) {
-        if (convertToLocalDateTime(timeBefore, "timeBefore").isBefore(convertToLocalDateTime(timeAfter, "timeAfter"))) {
-            throw new ValidationException("Time before must be before time after");
-        }        
+        if (!StringUtils.hasText(timeBefore) || !StringUtils.hasText(timeAfter)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
     }
 
-    private boolean isCurrentUserAdmin(String currentUsername) {
-        return roleRepository.findByUser_Username(currentUsername).stream()
-                .anyMatch(role -> role.getRolecode().equals("ADMIN"));
+    private boolean isCurrentUserAdmin(String username) {
+        List<Role> roles = roleRepository.findByUser_Username(username);
+        return roles.stream()
+                .anyMatch(role -> "ADMIN".equals(role.getRolecode()));
     }
 
-    private LocalDateTime convertToLocalDateTime(String time, String typeDateTime) {         
+    private LocalDateTime convertToLocalDateTime(String time) {         
         try {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             return LocalDate.parse(time, formatter).atStartOfDay();
-        } catch (DateTimeParseException ex)
-        {
-            throw new ValidationException(String.format("Invalid date time format for %s, please use yyyy-MM-dd", typeDateTime));
+        } catch (DateTimeParseException ex) {
+            throw new BusinessException(ErrorCode.INVALID_DATE_FORMAT);
         }
     }
 } 

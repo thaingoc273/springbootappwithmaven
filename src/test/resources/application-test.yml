@@ -3,7 +3,7 @@
 # - The yaml file had comments which are lost in the refactoring!
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
     driverClassName: org.h2.Driver
     username: sa
     password: ''
@@ -25,13 +25,11 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-    clean-disabled: false
-    clean-on-validation-error: true
+    clean-disabled: true
+    clean-on-validation-error: false
   sql:
     init:
-      mode: always # initialise the database before the test loading data for testing
-      # schema-locations: classpath:db/migration
-      # data-locations: classpath:data-test.sql
+      mode: always   
   transaction:
     default-timeout: 30
     rollback-on-commit-failure: true
