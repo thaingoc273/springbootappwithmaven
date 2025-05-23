@@ -206,8 +206,8 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setPassword(user.getPassword());
         dto.setCreatedAt(user.getCreatedAt());
+        dto.setCreatedAtZone(user.getCreatedAtZone());
         dto.setUpdatedAt(user.getUpdatedAt());
-        
         
         Set<String> roletypes = user.getRoles().stream()
             .map(role -> role.getRoletype())
@@ -223,12 +223,12 @@ public class UserService {
                 roleDTO.setRolecode(role.getRolecode());
                 roleDTO.setRoletype(role.getRoletype());
                 roleDTO.setCreatedAt(role.getCreatedAt());
+                roleDTO.setCreatedAtZone(role.getCreatedAtZone());
                 roleDTO.setUpdatedAt(role.getUpdatedAt());
                 return roleDTO;
             })
             .collect(Collectors.toList());
         
-        // dto.setRoletypes(roletypes);
         dto.setRoles(roles);
         
         return dto;

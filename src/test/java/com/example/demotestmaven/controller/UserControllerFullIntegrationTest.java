@@ -34,7 +34,7 @@ import jakarta.persistence.EntityManager;
 @ActiveProfiles("test")
 @Transactional
 @AutoConfigureMockMvc
-@Sql(scripts = "/data.sql")
+//@Sql(scripts = "/data.sql")
 public class UserControllerFullIntegrationTest {
 
     @Autowired

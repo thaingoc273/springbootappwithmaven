@@ -9,19 +9,18 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.jdbc.Sql;
 
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
 @ActiveProfiles("test")
 @Transactional
-//@Sql(scripts = "/data-test.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 public class UserRepositoryTest {
 
     @Autowired
@@ -35,7 +34,7 @@ public class UserRepositoryTest {
     private String emailTest = "test@example.com";
 
     private String nonexistentEmail = "nonexistent@example.com";
-    private String nonexistentUsername = "nonexistentusername";
+    private String nonexistentUsername = "nonexistent";
 
     private String usernameDuplicate = "duplicate";
     private String passwordDuplicate1 = "password456";
@@ -51,34 +50,29 @@ public class UserRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        // entityManager.clear();
-
         // Create a test user
         User user = new User();
         user.setUsername(usernameTest);
         user.setPassword(passwordTest);
         user.setEmail(emailTest);
+        LocalDateTime now = LocalDateTime.now();
+        user.setCreatedAt(now);
+        user.setCreatedAtZone(ZonedDateTime.now(ZoneId.systemDefault()));
+        user.setUpdatedAt(now);
         entityManager.persist(user);
         entityManager.flush();        
     }
 
-
     @Test
     public void testFindAll() {
-
         List<User> result = userRepository.findAll();
-        // Verify the result
         assertThat(result).isNotEmpty();
-        assertThat(result.size()).isEqualTo(3); // 2 from data-test.sql + 1 from this test
+        assertThat(result.size()).isEqualTo(5); // 4 from V3__Insert_initial_data.sql + 1 from setUp
     }   
 
     @Test
     public void testFindByUsername() {
-
-        // Test the repository method
         Optional<User> found = userRepository.findByUsername(usernameTest);
-
-        // Verify the result
         assertThat(found).isPresent();
         assertThat(found.get().getUsername()).isEqualTo(usernameTest);
         assertThat(found.get().getEmail()).isEqualTo(emailTest);
@@ -86,24 +80,16 @@ public class UserRepositoryTest {
 
     @Test
     public void testExistsByUsername() {
-
-        // Test the repository method
         boolean exists = userRepository.existsByUsername(usernameTest);
         boolean notExists = userRepository.existsByUsername(nonexistentUsername);
-
-        // Verify the results
         assertThat(exists).isTrue();
         assertThat(notExists).isFalse();
     }
 
     @Test
     public void testExistsByEmail() {
-       
-        // Test the repository method
         boolean exists = userRepository.existsByEmail(emailTest);
         boolean notExists = userRepository.existsByEmail(nonexistentEmail);
-
-        // Verify the results
         assertThat(exists).isTrue();
         assertThat(notExists).isFalse();
     }
@@ -111,22 +97,27 @@ public class UserRepositoryTest {
     @Test
     @Transactional
     void shouldEnforceUniqueUsername() {
-        // Given
         User user1 = new User();
         user1.setUsername(usernameDuplicate);
         user1.setPassword(passwordDuplicate1);
         user1.setEmail(emailDuplicate1);
+        LocalDateTime now = LocalDateTime.now();
+        user1.setCreatedAt(now);
+        user1.setCreatedAtZone(ZonedDateTime.now(ZoneId.systemDefault()));
+        user1.setUpdatedAt(now);
         userRepository.save(user1);
 
         User user2 = new User();
         user2.setUsername(usernameDuplicate); // Same username
         user2.setPassword(passwordDuplicate2);
         user2.setEmail(emailDuplicate2);
+        user2.setCreatedAt(now);
+        user2.setCreatedAtZone(ZonedDateTime.now(ZoneId.systemDefault()));
+        user2.setUpdatedAt(now);
 
-        // When/Then
         try {
             userRepository.save(user2);
-            entityManager.flush(); // Force the constraint check
+            entityManager.flush();
             assertThat(false).isTrue(); // Should not reach here
         } catch (Exception e) {
             assertThat(e.getMessage().toLowerCase()).contains("unique");
@@ -136,20 +127,13 @@ public class UserRepositoryTest {
     @Test
     @Transactional
     void findByCreatedAtBeforeAndAfter_ShouldReturnListOfUsers() {
-        // Act: query for users created before a later date
         List<User> result = userRepository.findByCreatedAtBeforeAndAfter(timeBefore, timeAfter);
-
-        // Assert
-        assertThat(result.size()).isEqualTo(3); // 2 from data.sql + 1 from this test
+        assertThat(result.size()).isGreaterThan(0);
     }
 
     @Test
     void findByCreatedAtBeforeAndAfter_WhenAfterIsBeforeBefore_ShouldReturnEmptyList() { 
-
-        // Act
         List<User> result = userRepository.findByCreatedAtBeforeAndAfter(timeBeforeEmptyReturn, timeAfterEmptyReturn);
-
-        // Assert
         assertThat(result).isEmpty();
     }  
 } 

@@ -2,6 +2,7 @@ package com.example.demotestmaven.dto;
 
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 @Data
 public class RoleDTO {
@@ -10,5 +11,6 @@ public class RoleDTO {
     private String rolecode;
     private String roletype;
     private LocalDateTime createdAt;
+    private ZonedDateTime createdAtZone;
     private LocalDateTime updatedAt;
 } 
