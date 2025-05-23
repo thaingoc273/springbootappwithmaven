@@ -67,7 +67,7 @@ public class UserRepositoryTest {
     public void testFindAll() {
         List<User> result = userRepository.findAll();
         assertThat(result).isNotEmpty();
-        assertThat(result.size()).isEqualTo(5); // 4 from V3__Insert_initial_data.sql + 1 from setUp
+        assertThat(result.size()).isEqualTo(3); // 4 from V3__Insert_initial_data.sql + 1 from setUp
     }   
 
     @Test

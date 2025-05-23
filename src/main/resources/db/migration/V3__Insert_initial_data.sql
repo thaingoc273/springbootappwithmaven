@@ -1,6 +1,6 @@
 -- Drop all data from users and roles table
-DELETE FROM role;
-DELETE FROM users;
+-- DELETE FROM role;
+-- DELETE FROM users;
 
 -- Insert Users
 INSERT INTO users (id, username, password, email) VALUES
