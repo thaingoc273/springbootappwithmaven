@@ -5,7 +5,6 @@ import java.util.UUID;
 import java.util.Set;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 import java.util.List;
 
 @Data
@@ -17,6 +16,5 @@ public class UserDTO {
     private Set<String> roletypes;
     private List<RoleDTO> roles;
     private LocalDateTime createdAt;
-    private LocalDateTime createdAtZone;
     private LocalDateTime updatedAt;
 } 

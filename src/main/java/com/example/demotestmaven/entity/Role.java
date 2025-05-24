@@ -3,8 +3,6 @@ package com.example.demotestmaven.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
-import java.time.ZoneId;
 import java.util.UUID;
 import org.hibernate.annotations.UuidGenerator;
 
@@ -26,9 +24,6 @@ public class Role {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "created_at_zone")
-    private LocalDateTime createdAtZone;
-
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -39,10 +34,8 @@ public class Role {
     @PrePersist
     protected void onCreate() {
         id = UUID.randomUUID().toString();
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        createdAtZone = now.plusHours(2);
-        updatedAt = now;
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
 
     @PreUpdate

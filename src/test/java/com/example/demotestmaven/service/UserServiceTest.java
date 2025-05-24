@@ -23,7 +23,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.time.ZoneId;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -68,10 +67,8 @@ class UserServiceTest {
         testUser.setUsername("testuser");
         testUser.setEmail("test@example.com");
         testUser.setPassword("encodedPassword");
-        LocalDateTime now = LocalDateTime.of(2025, 02, 20, 1, 0, 0);
-        testUser.setCreatedAt(now);
-        testUser.setCreatedAtZone(now.plusHours(2));
-        testUser.setUpdatedAt(now);
+        testUser.setCreatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
+        testUser.setUpdatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));        
 
         // Create test user DTO
         testUserDTO = new UserDTO();
@@ -80,7 +77,6 @@ class UserServiceTest {
         testUserDTO.setEmail(testUser.getEmail());
         testUserDTO.setPassword(testUser.getPassword());
         testUserDTO.setCreatedAt(testUser.getCreatedAt());
-        testUserDTO.setCreatedAtZone(testUser.getCreatedAtZone());
         testUserDTO.setUpdatedAt(testUser.getUpdatedAt());
 
         // Create admin user
@@ -89,9 +85,8 @@ class UserServiceTest {
         adminUser.setUsername("admin");
         adminUser.setEmail("admin@example.com");
         adminUser.setPassword("encodedPassword");
-        adminUser.setCreatedAt(now);
-        adminUser.setCreatedAtZone(now.plusHours(2));
-        adminUser.setUpdatedAt(now);
+        adminUser.setCreatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
+        adminUser.setUpdatedAt(LocalDateTime.of(2025, 02, 20, 1, 0, 0));
 
         // Create test roles
         adminRole = new Role();
@@ -295,10 +290,8 @@ class UserServiceTest {
         user.setUsername(username);
         user.setEmail(username + "@example.com");
         user.setPassword("password");
-        LocalDateTime now = LocalDateTime.now();
-        user.setCreatedAt(now);
-        user.setCreatedAtZone(now.plusHours(2));
-        user.setUpdatedAt(now);
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
         return user;
     }
 
@@ -307,10 +300,8 @@ class UserServiceTest {
         role.setId(java.util.UUID.randomUUID().toString());
         role.setRolecode("ADMIN");
         role.setRoletype("SYSTEM");
-        LocalDateTime now = LocalDateTime.now();
-        role.setCreatedAt(now);
-        role.setCreatedAtZone(now.plusHours(2));
-        role.setUpdatedAt(now);
+        role.setCreatedAt(LocalDateTime.now());
+        role.setUpdatedAt(LocalDateTime.now());
         return role;
     }
 } 
