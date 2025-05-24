@@ -17,6 +17,6 @@ public class UserDTO {
     private Set<String> roletypes;
     private List<RoleDTO> roles;
     private LocalDateTime createdAt;
-    private ZonedDateTime createdAtZone;
+    private LocalDateTime createdAtZone;
     private LocalDateTime updatedAt;
 } 

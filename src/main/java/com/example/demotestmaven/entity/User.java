@@ -38,7 +38,7 @@ public class User {
     private LocalDateTime createdAt;
 
     @Column(name = "created_at_zone")
-    private ZonedDateTime createdAtZone;
+    private LocalDateTime createdAtZone;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
@@ -51,7 +51,7 @@ public class User {
         //id = UUID.randomUUID().toString();
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
-        createdAtZone = now.atZone(ZoneId.systemDefault());
+        createdAtZone = now.plusHours(2);
         updatedAt = now;
     }
 

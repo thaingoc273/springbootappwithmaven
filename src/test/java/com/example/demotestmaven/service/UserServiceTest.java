@@ -70,7 +70,7 @@ class UserServiceTest {
         testUser.setPassword("encodedPassword");
         LocalDateTime now = LocalDateTime.of(2025, 02, 20, 1, 0, 0);
         testUser.setCreatedAt(now);
-        testUser.setCreatedAtZone(now.atZone(ZoneId.systemDefault()));
+        testUser.setCreatedAtZone(now.plusHours(2));
         testUser.setUpdatedAt(now);
 
         // Create test user DTO
@@ -90,7 +90,7 @@ class UserServiceTest {
         adminUser.setEmail("admin@example.com");
         adminUser.setPassword("encodedPassword");
         adminUser.setCreatedAt(now);
-        adminUser.setCreatedAtZone(now.atZone(ZoneId.systemDefault()));
+        adminUser.setCreatedAtZone(now.plusHours(2));
         adminUser.setUpdatedAt(now);
 
         // Create test roles
@@ -297,7 +297,7 @@ class UserServiceTest {
         user.setPassword("password");
         LocalDateTime now = LocalDateTime.now();
         user.setCreatedAt(now);
-        user.setCreatedAtZone(now.atZone(ZoneId.systemDefault()));
+        user.setCreatedAtZone(now.plusHours(2));
         user.setUpdatedAt(now);
         return user;
     }
@@ -309,7 +309,7 @@ class UserServiceTest {
         role.setRoletype("SYSTEM");
         LocalDateTime now = LocalDateTime.now();
         role.setCreatedAt(now);
-        role.setCreatedAtZone(now.atZone(ZoneId.systemDefault()));
+        role.setCreatedAtZone(now.plusHours(2));
         role.setUpdatedAt(now);
         return role;
     }

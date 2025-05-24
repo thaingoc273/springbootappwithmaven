@@ -7,8 +7,8 @@ ALTER TABLE role
 ADD COLUMN created_at_zone TIMESTAMP;
 
 -- Update existing records to set createdAtZone based on createdAt
-UPDATE users
-SET created_at_zone = CONVERT_TZ(created_at, 'UTC', 'Europe/Paris');
+-- UPDATE users
+-- SET created_at_zone = created_at; -- DATE_ADD(created_at, INTERVAL 2 HOUR); -- CONVERT_TZ(created_at, 'UTC', 'Europe/Paris');
 
-UPDATE role
-SET created_at_zone = CONVERT_TZ(created_at, "UTC", "Europe/Paris")
+-- UPDATE role
+-- SET created_at_zone = created_at; -- DATE_ADD(created_at, INTERVAL 2 HOUR); -- CONVERT_TZ(created_at, "UTC", "Europe/Paris")

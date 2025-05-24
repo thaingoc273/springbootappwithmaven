@@ -57,7 +57,7 @@ public class UserRepositoryTest {
         user.setEmail(emailTest);
         LocalDateTime now = LocalDateTime.now();
         user.setCreatedAt(now);
-        user.setCreatedAtZone(ZonedDateTime.now(ZoneId.systemDefault()));
+        user.setCreatedAtZone(now.plusHours(2));
         user.setUpdatedAt(now);
         entityManager.persist(user);
         entityManager.flush();        
@@ -103,7 +103,7 @@ public class UserRepositoryTest {
         user1.setEmail(emailDuplicate1);
         LocalDateTime now = LocalDateTime.now();
         user1.setCreatedAt(now);
-        user1.setCreatedAtZone(ZonedDateTime.now(ZoneId.systemDefault()));
+        user1.setCreatedAtZone(now.plusHours(2));
         user1.setUpdatedAt(now);
         userRepository.save(user1);
 
@@ -112,7 +112,7 @@ public class UserRepositoryTest {
         user2.setPassword(passwordDuplicate2);
         user2.setEmail(emailDuplicate2);
         user2.setCreatedAt(now);
-        user2.setCreatedAtZone(ZonedDateTime.now(ZoneId.systemDefault()));
+        user2.setCreatedAtZone(now.plusHours(2));
         user2.setUpdatedAt(now);
 
         try {

@@ -11,6 +11,6 @@ public class RoleDTO {
     private String rolecode;
     private String roletype;
     private LocalDateTime createdAt;
-    private ZonedDateTime createdAtZone;
+    private LocalDateTime createdAtZone;
     private LocalDateTime updatedAt;
 } 
