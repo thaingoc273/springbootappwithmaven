@@ -6,13 +6,19 @@ import com.example.demotestmaven.exception.UnauthorizedException;
 import com.example.demotestmaven.exception.ValidationException;
 import com.example.demotestmaven.entity.Role;
 import com.example.demotestmaven.repository.UserRepository;
+
+import jakarta.transaction.Transactional;
+
 import com.example.demotestmaven.repository.RoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -28,9 +34,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.example.demotestmaven.exception.ApiErrorType;
+import com.example.demotestmaven.exception.ApiException;
 import com.example.demotestmaven.exception.BusinessException;
 import com.example.demotestmaven.exception.ErrorCode;
 
+@DataJpaTest
+@ActiveProfiles("test")
+@Transactional
 class UserServiceTest {
 
     @Mock
@@ -52,7 +63,7 @@ class UserServiceTest {
     private User adminUser;
     
     private String adminUsername = "ngoc";
-    private String normalUsername = "phuong";
+    private String normalUsername = "phuong";   
     private String dateBefore = "2025-05-30";
     private String dateAfter = "2025-05-15";
     private String invalidDate = "invalid-date-format";    
@@ -110,9 +121,11 @@ class UserServiceTest {
     void getAllUsers_ShouldReturnListOfUsers() {
         // Arrange
         when(userRepository.findAllWithRoles()).thenReturn(Arrays.asList(testUser));
+        // when(userService.isCurrentUserAdmin(adminUsername)).thenReturn(true);
+        when(roleRepository.findByUser_Username(adminUsername)).thenReturn(Arrays.asList(adminRole));
 
         // Act
-        List<UserDTO> result = userService.getAllUsers();
+        List<UserDTO> result = userService.getAllUsers(adminUsername);
 
         // Assert
         assertNotNull(result);
@@ -210,9 +223,9 @@ class UserServiceTest {
                 .thenReturn(Collections.emptyList());
 
         // Act & Assert
-        BusinessException exception = assertThrows(BusinessException.class,
+        ApiException exception = assertThrows(ApiException.class,
                 () -> userService.updateUser(currentUsername, targetUsername, updateDTO));
-        assertEquals(ErrorCode.FORBIDDEN_OPERATION.getMessage(), exception.getMessage());
+        assertEquals(ApiErrorType.FORBIDDEN_OPERATION.getMessage(), exception.getMessage());
     }
 
     @Test
@@ -256,9 +269,9 @@ class UserServiceTest {
                 .thenReturn(Collections.singletonList(createAdminRole()));
 
         // Act & Assert
-        BusinessException exception = assertThrows(BusinessException.class,
+        ApiException exception = assertThrows(ApiException.class,
                 () -> userService.getUsersByCreatedAtBeforeAndAfter(currentUsername, "invalid-date", "2025-02-20"));
-        assertEquals(ErrorCode.INVALID_DATE_FORMAT.getMessage(), exception.getMessage());
+        assertEquals(ApiErrorType.USER_INVALID_INPUT.getMessage(), exception.getMessage());
     }
     
     @Test
@@ -269,9 +282,9 @@ class UserServiceTest {
                 .thenReturn(Collections.emptyList());
 
         // Act & Assert
-        BusinessException exception = assertThrows(BusinessException.class,
+        ApiException exception = assertThrows(ApiException.class,
                 () -> userService.getUsersByCreatedAtBeforeAndAfter(currentUsername, "2025-02-20", "2025-02-19"));
-        assertEquals(ErrorCode.UNAUTHORIZED_ACCESS.getMessage(), exception.getMessage());
+        assertEquals(ApiErrorType.FORBIDDEN_OPERATION.getMessage(), exception.getMessage());
     }
 
     private LocalDateTime convertToLocalDateTime(String time) {         

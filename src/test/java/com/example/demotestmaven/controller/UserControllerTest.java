@@ -44,6 +44,7 @@ class UserControllerTest {
     private String currentUsername = "testuser";
     private String dateTimeBefore = "2025-02-30";
     private String dateTimeAfter = "2025-02-20";
+    private String adminUser = "testuser1";
 
     @BeforeEach
     void setUp() {
@@ -75,16 +76,16 @@ class UserControllerTest {
     @Test
     void getAllUsers_ShouldReturnListOfUsers() {
         // Arrange
-        when(userService.getAllUsers()).thenReturn(testUsers);
+        when(userService.getAllUsers(adminUser)).thenReturn(testUsers);
 
         // Act
-        ResponseEntity<List<UserDTO>> response = userController.getAllUsers();
+        ResponseEntity<List<UserDTO>> response = userController.getAllUsers(adminUser);
 
         // Assert
         assertNotNull(response);
         assertEquals(200, response.getStatusCode().value());
         assertEquals(testUsers, response.getBody());
-        verify(userService, times(1)).getAllUsers();
+        verify(userService, times(1)).getAllUsers(adminUser);
     }
 
     @Test

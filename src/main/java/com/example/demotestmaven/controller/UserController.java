@@ -19,8 +19,8 @@ public class UserController {
     private UserService userService;
 
     @GetMapping
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        return ResponseEntity.ok(userService.getAllUsers());
+    public ResponseEntity<List<UserDTO>> getAllUsers(@RequestHeader("X-Current-User") String currentUsername) {
+        return ResponseEntity.ok(userService.getAllUsers(currentUsername));
     }
 
     @GetMapping("/{username}")
