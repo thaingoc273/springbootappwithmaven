@@ -38,14 +38,19 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "created_at_local")
+    private LocalDateTime createdAtLocal;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Role> roles = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
         //id = UUID.randomUUID().toString();
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
+        createdAt = now;
+        // updatedAt = now;
+        createdAtLocal = now.plusHours(2);
     }
 
     @PreUpdate

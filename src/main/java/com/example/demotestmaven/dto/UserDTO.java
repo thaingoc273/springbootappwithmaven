@@ -17,4 +17,5 @@ public class UserDTO {
     private List<RoleDTO> roles;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime createdAtLocal;
 } 

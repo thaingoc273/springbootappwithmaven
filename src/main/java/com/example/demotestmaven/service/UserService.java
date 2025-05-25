@@ -111,6 +111,68 @@ public class UserService {
         return convertToDTO(userRepository.save(targetUser));
     }
 
+    @Transactional
+    public UserDTO createUser(String currentUsername, UserDTO userDTO) {
+        if (!isCurrentUserAdmin(currentUsername)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS);
+        }
+
+        validateUserCreate(userDTO);
+
+        User newUser = new User();
+        newUser.setUsername(userDTO.getUsername());
+        newUser.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        newUser.setEmail(userDTO.getEmail());   
+
+        updateUserRoles(newUser, userDTO.getRoles());
+        
+        return convertToDTO(userRepository.save(newUser));
+    }
+
+    private void validateUserCreate(UserDTO userDTO) {
+
+        if (!StringUtils.hasText(userDTO.getUsername())) {
+            throw new BusinessException(ErrorCode.INVALID_USERNAME);
+        }
+
+        if (!StringUtils.hasText(userDTO.getPassword())) {      
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        if (!StringUtils.hasText(userDTO.getEmail())) {
+            throw new BusinessException(ErrorCode.INVALID_EMAIL);
+        }
+
+        if (!userDTO.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            throw new BusinessException(ErrorCode.INVALID_EMAIL);
+        }
+
+        if (userDTO.getPassword().length() < 8) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        if (userRepository.findByUsername(userDTO.getUsername()).isPresent()) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "Username already exists");
+        }
+
+        if (userRepository.findByEmail(userDTO.getEmail()).isPresent()) {
+            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "Email already exists");
+        }
+
+        if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
+            for (RoleDTO role : userDTO.getRoles()) {
+                if (!StringUtils.hasText(role.getRolecode())) {
+                    throw new BusinessException(ErrorCode.INVALID_ROLE, "Role code is required for each role");
+                }
+            }
+        }
+
+        if (userDTO.getRoles().stream().anyMatch(role -> role.getRoletype() == null)) {
+            throw new BusinessException(ErrorCode.INVALID_ROLE, "Role type is required for each role");
+        }            
+
+    }
+
     private void updateUserRoles(User user, List<RoleDTO> newRoles) {
         // Track unique rolecodes to prevent duplicates
         Set<String> uniqueRolecodes = new HashSet<>();
@@ -207,6 +269,7 @@ public class UserService {
         dto.setPassword(user.getPassword());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
+        dto.setCreatedAtLocal(user.getCreatedAtLocal());
         
         
         Set<String> roletypes = user.getRoles().stream()
@@ -224,6 +287,7 @@ public class UserService {
                 roleDTO.setRoletype(role.getRoletype());
                 roleDTO.setCreatedAt(role.getCreatedAt());
                 roleDTO.setUpdatedAt(role.getUpdatedAt());
+                roleDTO.setCreatedAtLocal(role.getCreatedAtLocal());
                 return roleDTO;
             })
             .collect(Collectors.toList());

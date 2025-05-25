@@ -44,4 +44,9 @@ public class UserController {
         ) {
         return ResponseEntity.ok(userService.getUsersByCreatedAtBeforeAndAfter(currentUsername,beforeDate, afterDate));
     }
+
+    @PostMapping("/")
+    public ResponseEntity<UserDTO> createUser(@RequestHeader("X-Current-User") String currentUsername, @RequestBody UserDTO userDTO) {
+        return ResponseEntity.ok(userService.createUser(currentUsername, userDTO));
+    }
 } 
