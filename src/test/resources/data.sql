@@ -15,7 +15,7 @@ INSERT INTO role (id, username, rolecode, roletype) VALUES
 (UUID(), 'testuser2', 'MANAGER', 'SYSTEM');
 
 UPDATE users
-SET created_at_local = TIMESTAMPADD(HOUR, 3, created_at);
+SET created_at_local = TIMESTAMPADD(HOUR, 2, created_at);
 
 UPDATE role
-SET created_at_local = TIMESTAMPADD(HOUR, 3, created_at);
+SET created_at_local = TIMESTAMPADD(HOUR, 2, created_at);
