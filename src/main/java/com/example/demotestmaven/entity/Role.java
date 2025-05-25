@@ -43,7 +43,7 @@ public class Role {
         // id = UUID.randomUUID().toString();
         LocalDateTime now = LocalDateTime.now();
         createdAt = now;
-        // updatedAt = now;
+        updatedAt = now;
         createdAtLocal = now.plusHours(2);
     }
 

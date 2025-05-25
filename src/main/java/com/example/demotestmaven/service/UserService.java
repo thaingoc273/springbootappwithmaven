@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.demotestmaven.entity.Role;
 import org.springframework.util.StringUtils;
 import com.example.demotestmaven.exception.ValidationException;
+import com.example.demotestmaven.exception.ApiErrorType;
+import com.example.demotestmaven.exception.ApiException;
 import com.example.demotestmaven.exception.BusinessException;
 import com.example.demotestmaven.exception.ErrorCode;
 
@@ -40,7 +42,10 @@ public class UserService {
     private PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
-    public List<UserDTO> getAllUsers() {
+    public List<UserDTO> getAllUsers(String currentUsername) {
+        if (!isCurrentUserAdmin(currentUsername)) {
+            throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
+        }
         // List<User> users = userRepository.findAll();
         List<User> users = userRepository.findAllWithRoles();
         return users.stream()
@@ -52,7 +57,7 @@ public class UserService {
     public UserDTO getUserByUsername(String username) {
         return userRepository.findByUsername(username)
                 .map(this::convertToDTO)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, username));
+                .orElseThrow(() -> new  ApiException(ApiErrorType.USER_NOT_FOUND, username));//BusinessException(ErrorCode.USER_NOT_FOUND, username));
     }
 
     // Get users by createdAt before a given date time
@@ -61,7 +66,7 @@ public class UserService {
     public List<UserDTO> getUsersByCreatedAtBeforeAndAfter(String currentUsername, String timeBefore, String timeAfter) {        
                 
         if (!isCurrentUserAdmin(currentUsername)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS);
+            throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
         }
 
         validateTimeBeforeAndAfter(timeBefore, timeAfter);
@@ -81,18 +86,18 @@ public class UserService {
         validateUserUpdate(currentUsername, targetUsername, userDTO);
         
         if (!isCurrentUserAdmin(currentUsername) && (!currentUsername.equals(targetUsername))) {
-            throw new BusinessException(ErrorCode.FORBIDDEN_OPERATION);
+            throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
         }
 
         User currentUser = userRepository.findByUsername(currentUsername)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, currentUsername));
+                .orElseThrow(() -> new ApiException(ApiErrorType.USER_NOT_FOUND, currentUsername));
         
         User targetUser = userRepository.findByUsername(targetUsername)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, targetUsername));
+                .orElseThrow(() -> new ApiException(ApiErrorType.USER_NOT_FOUND, targetUsername));
 
         // Check permissions
         if (!canEditUser(currentUser, targetUser)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN_OPERATION);
+            throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
         }
 
         // Update user information
@@ -113,8 +118,12 @@ public class UserService {
 
     @Transactional
     public UserDTO createUser(String currentUsername, UserDTO userDTO) {
+        if (userDTO == null) {
+            throw new ApiException(ApiErrorType.USER_INVALID_INPUT);
+        }
+
         if (!isCurrentUserAdmin(currentUsername)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED_ACCESS);
+            throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
         }
 
         validateUserCreate(userDTO);
@@ -132,44 +141,52 @@ public class UserService {
     private void validateUserCreate(UserDTO userDTO) {
 
         if (!StringUtils.hasText(userDTO.getUsername())) {
-            throw new BusinessException(ErrorCode.INVALID_USERNAME);
+            throw new ApiException(ApiErrorType.USER_INVALID_USERNAME);
         }
 
         if (!StringUtils.hasText(userDTO.getPassword())) {      
-            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+            throw new ApiException(ApiErrorType.USER_INVALID_PASSWORD);
         }
 
         if (!StringUtils.hasText(userDTO.getEmail())) {
-            throw new BusinessException(ErrorCode.INVALID_EMAIL);
+            throw new ApiException(ApiErrorType.USER_INVALID_EMAIL);
         }
 
         if (!userDTO.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            throw new BusinessException(ErrorCode.INVALID_EMAIL);
+            throw new ApiException(ApiErrorType.USER_INVALID_EMAIL);
         }
 
         if (userDTO.getPassword().length() < 8) {
-            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+            throw new ApiException(ApiErrorType.USER_INVALID_PASSWORD);
         }
 
         if (userRepository.findByUsername(userDTO.getUsername()).isPresent()) {
-            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "Username already exists");
+            throw new ApiException(ApiErrorType.USER_ALREADY_EXISTS);   
         }
 
         if (userRepository.findByEmail(userDTO.getEmail()).isPresent()) {
-            throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, "Email already exists");
+            throw new ApiException(ApiErrorType.USER_EMAIL_ALREADY_EXISTS);
         }
+
+
 
         if (userDTO.getRoles() != null && !userDTO.getRoles().isEmpty()) {
             for (RoleDTO role : userDTO.getRoles()) {
                 if (!StringUtils.hasText(role.getRolecode())) {
-                    throw new BusinessException(ErrorCode.INVALID_ROLE, "Role code is required for each role");
+                    throw new ApiException(ApiErrorType.USER_ROLE_CODE_INVALID);
                 }
             }
         }
 
+        if (userDTO.getRoles() == null) {
+            throw new ApiException(ApiErrorType.ROLE_REQUIRED_FIELD_MISSING, userDTO.getUsername());
+        }
+
         if (userDTO.getRoles().stream().anyMatch(role -> role.getRoletype() == null)) {
-            throw new BusinessException(ErrorCode.INVALID_ROLE, "Role type is required for each role");
-        }            
+            throw new ApiException(ApiErrorType.USER_ROLE_TYPE_INVALID);
+        }
+        
+
 
     }
 
@@ -188,8 +205,7 @@ public class UserService {
         for (RoleDTO roleDTO : newRoles) {
             // Check for duplicate rolecodes
             if (!uniqueRolecodes.add(roleDTO.getRolecode())) {
-                throw new BusinessException(ErrorCode.DUPLICATE_RESOURCE, 
-                    "Duplicate role code: %s. A user cannot have the same role multiple times.", roleDTO.getRolecode());
+                throw new ApiException(ApiErrorType.USER_ROLE_DUPLICATE, roleDTO.getRolecode());      
             }
 
             // Check if role already exists
@@ -209,42 +225,42 @@ public class UserService {
     private void validateUserUpdate(String currentUsername, String targetUsername, UserDTO userDTO) {
         // Validate current username
         if (!StringUtils.hasText(currentUsername)) {
-            throw new BusinessException(ErrorCode.INVALID_USERNAME);
+            throw new ApiException(ApiErrorType.USER_INVALID_USERNAME);
         }
 
         // Validate target username
         if (!StringUtils.hasText(targetUsername)) {
-            throw new BusinessException(ErrorCode.INVALID_USERNAME);
+            throw new ApiException(ApiErrorType.USER_INVALID_USERNAME);
         }
 
         // Validate userDTO
         if (userDTO == null) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
+            throw new ApiException(ApiErrorType.USER_INVALID_INPUT);
         }
 
         // Validate email format if provided
         if (userDTO.getEmail() != null && !userDTO.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
-            throw new BusinessException(ErrorCode.INVALID_EMAIL);
+            throw new ApiException(ApiErrorType.USER_INVALID_EMAIL);
         }
 
         // Validate password length if provided
         if (userDTO.getPassword() != null && userDTO.getPassword().length() < 8) {
-            throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+            throw new ApiException(ApiErrorType.USER_INVALID_PASSWORD);
         }
 
         // Validate target user is not the UserDTO itself
         if (!userDTO.getUsername().equals(targetUsername)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT, "Target user is not the same as needed update user");
+            throw new ApiException(ApiErrorType.USER_INVALID_INPUT);    
         }
 
         // Validate roles if provided
         if (userDTO.getRoles() != null) {
             for (RoleDTO role : userDTO.getRoles()) {
                 if (!StringUtils.hasText(role.getRolecode())) {
-                    throw new BusinessException(ErrorCode.INVALID_ROLE, "Role code is required for each role");
+                    throw new ApiException(ApiErrorType.USER_ROLE_CODE_INVALID);
                 }
                 if (!StringUtils.hasText(role.getRoletype())) {
-                    throw new BusinessException(ErrorCode.INVALID_ROLE, "Role type is required for each role");
+                    throw new ApiException(ApiErrorType.USER_ROLE_TYPE_INVALID);
                 }
             }
         }
@@ -300,11 +316,11 @@ public class UserService {
 
     private void validateTimeBeforeAndAfter(String timeBefore, String timeAfter) {
         if (!StringUtils.hasText(timeBefore) || !StringUtils.hasText(timeAfter)) {
-            throw new BusinessException(ErrorCode.INVALID_INPUT);
+            throw new ApiException(ApiErrorType.USER_INVALID_INPUT);
         }
     }
 
-    private boolean isCurrentUserAdmin(String username) {
+    boolean isCurrentUserAdmin(String username) {
         List<Role> roles = roleRepository.findByUser_Username(username);
         return roles.stream()
                 .anyMatch(role -> "ADMIN".equals(role.getRolecode()));
@@ -315,7 +331,7 @@ public class UserService {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
             return LocalDate.parse(time, formatter).atStartOfDay();
         } catch (DateTimeParseException ex) {
-            throw new BusinessException(ErrorCode.INVALID_DATE_FORMAT);
+            throw new ApiException(ApiErrorType.USER_INVALID_INPUT);
         }
     }
 } 

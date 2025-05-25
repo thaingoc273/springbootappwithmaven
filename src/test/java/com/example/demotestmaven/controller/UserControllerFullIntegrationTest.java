@@ -3,12 +3,15 @@ package com.example.demotestmaven.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -24,6 +27,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 
 import com.example.demotestmaven.dto.UserDTO;
+import com.example.demotestmaven.dto.RoleDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.entity.Role;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -59,6 +63,10 @@ public class UserControllerFullIntegrationTest {
     private String nonexistentUsername = "nonexistentuser";
     private String nonAdminUsername = "testuser2";
 
+    private String newUsername = "newuser";
+    private String newPassword = "newpassword";
+    private String newEmail = "new@example.com";
+
     @BeforeEach
     void cleanDatabase() {
         // entityManager.createNativeQuery("DELETE FROM role").executeUpdate();
@@ -84,7 +92,8 @@ public class UserControllerFullIntegrationTest {
     @Test
     void getAllUsers_WhenNormal_ShouldReturnListOfUsers() throws Exception {
 
-        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/api/users"))
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.get("/api/users")
+                                .header("X-Current-User", adminUsername))
                                 .andExpect(MockMvcResultMatchers.status().isOk())
                                 .andReturn();
         String responseBody = result.getResponse().getContentAsString();
@@ -173,5 +182,68 @@ public class UserControllerFullIntegrationTest {
 
         // String responseBody = result.getResponse().getContentAsString();
         // assertTrue(responseBody.contains("You don't have permission to edit this user"));
+    }
+
+    @Test
+    void createUser_WhenNormal_ShouldReturnCreatedUser() throws Exception {
+        UserDTO newUser = new UserDTO();
+        newUser.setUsername(newUsername);
+        newUser.setPassword(newPassword);
+        newUser.setEmail(newEmail);
+        
+        // Add a role to the new user
+        RoleDTO role = new RoleDTO();
+        role.setUsername(newUsername);
+        role.setRolecode("USER");
+        role.setRoletype("REGULAR_USER");
+        newUser.setRoles(Arrays.asList(role));
+        
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/api/users/")
+                                    .header("X-Current-User", adminUsername)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(newUser)))
+                                    .andExpect(MockMvcResultMatchers.status().isOk())
+                                    .andReturn();
+        String responseBody = result.getResponse().getContentAsString();
+        UserDTO actualUser = objectMapper.readValue(responseBody, UserDTO.class);
+
+        assertEquals(actualUser.getUsername(), newUsername);
+        assertTrue(actualUser.getPassword().startsWith("$2a$"));
+        assertEquals(actualUser.getEmail(), newEmail);
+        assertNotNull(actualUser.getRoles());
+        assertFalse(actualUser.getRoles().isEmpty());
+        assertEquals("USER", actualUser.getRoles().get(0).getRolecode());
+    }    
+    
+    @Test
+    void createUser_WhenNormal_ShouldReturnCreatedUser_SecondTime() throws Exception {
+        UserDTO newUser = new UserDTO();
+        newUser.setUsername(newUsername);
+        newUser.setPassword(newPassword);
+        newUser.setEmail(newEmail);
+        
+        // Add a role to the new user
+        RoleDTO role = new RoleDTO();
+        role.setUsername(newUsername);
+        role.setRolecode("USER");
+        role.setRoletype("REGULAR_USER");
+        newUser.setRoles(Arrays.asList(role));
+        
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.post("/api/users/")
+                                    .header("X-Current-User", adminUsername)
+                                    .contentType(MediaType.APPLICATION_JSON)
+                                    .content(objectMapper.writeValueAsString(newUser)))
+                                    .andExpect(MockMvcResultMatchers.status().isOk())
+                                    .andReturn();
+        String responseBody = result.getResponse().getContentAsString();
+        UserDTO actualUser = objectMapper.readValue(responseBody, UserDTO.class);
+
+        assertEquals(actualUser.getUsername(), newUsername);
+        assertTrue(actualUser.getPassword().startsWith("$2a$"));
+        assertEquals(actualUser.getEmail(), newEmail);
+        assertNotNull(actualUser.getRoles());
+        assertFalse(actualUser.getRoles().isEmpty());
+        assertEquals("USER", actualUser.getRoles().get(0).getRolecode());
     } 
+
 }
