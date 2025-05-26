@@ -24,6 +24,7 @@ public enum ApiErrorType {
     ROLE_ALREADY_EXISTS("ROLE_400", "Role already exists", HttpStatus.BAD_REQUEST),
     ROLE_INVALID_INPUT("ROLE_400", "Invalid input", HttpStatus.BAD_REQUEST),
     ROLE_REQUIRED_FIELD_MISSING("ROLE_400", "Required role for user %s is missing", HttpStatus.BAD_REQUEST),
+    
     //Authorization error
     UNAUTHORIZED_ACCESS("AUTH_401", "Unauthorized access", HttpStatus.UNAUTHORIZED),
     FORBIDDEN_OPERATION("AUTH_403", "Forbidden operation, only admin can access", HttpStatus.FORBIDDEN),
