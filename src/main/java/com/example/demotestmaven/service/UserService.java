@@ -7,12 +7,23 @@ import com.example.demotestmaven.repository.UserRepository;
 import com.example.demotestmaven.repository.RoleRepository;
 import com.example.demotestmaven.exception.ResourceNotFoundException;
 import com.example.demotestmaven.exception.UnauthorizedException;
+
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.demotestmaven.entity.Role;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.example.demotestmaven.exception.ValidationException;
 import com.example.demotestmaven.exception.ApiErrorType;
 import com.example.demotestmaven.exception.ApiException;
@@ -22,12 +33,17 @@ import com.example.demotestmaven.exception.ErrorCode;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedList;
 
 @Service
 public class UserService {
@@ -40,6 +56,8 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    private final DataFormatter dataFormatter = new DataFormatter();
 
     @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers(String currentUsername) {
@@ -133,10 +151,113 @@ public class UserService {
         newUser.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         newUser.setEmail(userDTO.getEmail());   
 
-        updateUserRoles(newUser, userDTO.getRoles());
+        newUser = updateUserRoles(newUser, userDTO.getRoles());
         
         return convertToDTO(userRepository.save(newUser));
     }
+
+    @Transactional
+    public List<UserDTO> importUsersFromExcel(InputStream file) throws IOException {
+        List<User> users = new LinkedList<>();        
+
+        Workbook  workbook = WorkbookFactory.create(file);
+        Sheet sheet = workbook.getSheetAt(0);
+        List<String> usernameContainer = new ArrayList<>();
+        List<String> emailContainer = new ArrayList<>();
+                
+        //Iterator<Row> rowIterator = sheet.iterator();
+        for (Row row : sheet) { 
+            if ((row.getRowNum() == 0) || (isRowEmpty(row))) {
+                continue;   
+            }
+            String username = getCellValue(row, 0);    
+            String password = getCellValue(row, 1);
+            String email = getCellValue(row, 2);
+            String rolecode = getCellValue(row, 3);
+            String roletype = getCellValue(row, 4);
+            // User user = new User();
+
+            User user = checkMultipleRole(username, password, email, rolecode, roletype, usernameContainer, emailContainer, users);
+ 
+            validateUserCreate(convertToDTO(user));
+        }    
+        userRepository.saveAll(users);
+        return users.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    private User checkMultipleRole(String username, String password, String email, String rolecode, String roletype, 
+                                    List<String> usernameContainer, List<String> emailContainer, List<User> users) {
+        if (!usernameContainer.contains(username)) {
+            User user = new User();
+            user.setUsername(username);
+            user.setPassword(passwordEncoder.encode(password));
+            user.setEmail(email);
+
+            Role role = new Role();
+            role.setRolecode(rolecode);
+            role.setRoletype(roletype);
+
+            role.setUser(user);
+            user.getRoles().add(role);
+
+            users.add(user);
+            usernameContainer.add(username);
+            emailContainer.add(email);
+            return user;
+        } else {
+            int index = usernameContainer.indexOf(username);
+            User userOld = users.get(index);
+            
+            if (userOld.getRoles().stream()
+                                    .anyMatch(roleOld -> roleOld.getRolecode().equals(rolecode))) {
+                    throw new ApiException(ApiErrorType.USER_ROLE_ALREADY_EXISTS, username);
+            }
+
+            if (!passwordEncoder.matches(password, userOld.getPassword())) {
+                throw new ApiException(ApiErrorType.USER_PASSWORD_MISMATCH, username);
+            }
+
+            if (!userOld.getEmail().equals(email)) {
+                throw new ApiException(ApiErrorType.USER_EMAIL_MISMATCH, username);
+            }
+
+            Role addRole = new Role();
+            addRole.setRolecode(rolecode);
+            addRole.setRoletype(roletype);
+    
+            addRole.setUser(userOld);
+            userOld.getRoles().add(addRole);
+            
+            users.add(userOld);
+            return userOld;
+        }
+    }
+
+    private String getCellValue(Row row, int columnIndex) {
+        return dataFormatter.formatCellValue(row.getCell(columnIndex)).trim();
+    }
+
+
+    private boolean isRowEmpty(Row row) {
+        if (row == null) return true;
+    
+        int lastColumn = row.getLastCellNum(); // may return -1 for empty row
+        if (lastColumn < 0) return true;
+    
+        for (int c = row.getFirstCellNum(); c < lastColumn; c++) {
+            Cell cell = row.getCell(c, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+            if (cell != null && cell.getCellType() != CellType.BLANK) {
+                String value = dataFormatter.formatCellValue(cell).trim();
+                if (!value.isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+    
 
     private void validateUserCreate(UserDTO userDTO) {
 
@@ -190,7 +311,7 @@ public class UserService {
 
     }
 
-    private void updateUserRoles(User user, List<RoleDTO> newRoles) {
+    private User updateUserRoles(User user, List<RoleDTO> newRoles) {
         // Track unique rolecodes to prevent duplicates
         Set<String> uniqueRolecodes = new HashSet<>();
 
@@ -220,6 +341,7 @@ public class UserService {
                 user.getRoles().add(role);
             }
         }
+        return user;
     }
 
     private void validateUserUpdate(String currentUsername, String targetUsername, UserDTO userDTO) {
