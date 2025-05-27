@@ -16,11 +16,10 @@
      - [x] Writing test for Rest APIs endpoints
      - [x] Check compatible between H2 database and MySQL
      - [x] Create full integration test       
-- 26.05.2025
-    - [x] Swagger: for documents and APIs listing, testing
-    - [ ] log4j, sl4j: for debugging and visibility
-- Need to be done
-     - [ ] Create end point for upload excel file and save to database
+     - [x] Swagger: for documents and APIs listing, testing
+     - [x] log4j, sl4j: for debugging and visibility
+     - [x] Create end point for upload excel file and save to database
+- Need to be done     
      - [ ] Create end point that calls from another API
      - [ ] Create Cron job
      - [ ] Concurrence in database

@@ -1,6 +1,7 @@
 package com.example.demotestmaven.controller;
 
 import com.example.demotestmaven.dto.UserDTO;
+import com.example.demotestmaven.dto.UserExcelResponseDTO;
 import com.example.demotestmaven.service.UserService;
 import com.example.demotestmaven.exception.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +59,7 @@ public class UserController {
     }
 
     @PostMapping(value ="/import", consumes = "multipart/form-data")
-    public ResponseEntity<List<UserDTO>> importUsersFromExcel(@RequestParam("file") MultipartFile file) throws IOException {
+    public ResponseEntity<List<UserExcelResponseDTO>> importUsersFromExcel(@RequestParam("file") MultipartFile file) throws IOException {
         return ResponseEntity.ok(userService.importUsersFromExcel(file.getInputStream()));
     }
 } 

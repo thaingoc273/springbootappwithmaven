@@ -10,25 +10,26 @@ import lombok.Getter;
 public enum ApiErrorType {
     //User error
     USER_NOT_FOUND("User not found with username: %s", HttpStatus.NOT_FOUND),
-    USER_ALREADY_EXISTS("User already exists", HttpStatus.BAD_REQUEST),
+    USER_ALREADY_EXISTS("User already exists %s", HttpStatus.BAD_REQUEST),
     USER_INVALID_INPUT("Invalid input", HttpStatus.BAD_REQUEST),
-    USER_INVALID_USERNAME("Invalid username", HttpStatus.BAD_REQUEST),
-    USER_INVALID_PASSWORD("Invalid password", HttpStatus.BAD_REQUEST),
-    USER_INVALID_EMAIL("Invalid email", HttpStatus.BAD_REQUEST),
-    USER_EMAIL_ALREADY_EXISTS("Email already exists", HttpStatus.BAD_REQUEST),
-    USER_ROLE_INVALID("Invalid role", HttpStatus.BAD_REQUEST),
-    USER_ROLE_TYPE_INVALID("Invalid role type", HttpStatus.BAD_REQUEST),
-    USER_ROLE_CODE_INVALID("Invalid role code", HttpStatus.BAD_REQUEST),
+    USER_INVALID_USERNAME("Invalid username %s", HttpStatus.BAD_REQUEST),
+    USER_INVALID_PASSWORD("Invalid password %s", HttpStatus.BAD_REQUEST),
+    USER_INVALID_EMAIL("Invalid email %s", HttpStatus.BAD_REQUEST),
+    USER_EMAIL_ALREADY_EXISTS("Email already exists for email: %s", HttpStatus.BAD_REQUEST),
+    USER_ROLE_INVALID("Invalid role: %s", HttpStatus.BAD_REQUEST),
+    USER_ROLE_TYPE_INVALID("Invalid role type %s", HttpStatus.BAD_REQUEST),
+    USER_ROLE_CODE_INVALID("Invalid role code %s", HttpStatus.BAD_REQUEST),
     USER_ROLE_DUPLICATE("Duplicate role code: %s. A user cannot have the same role multiple times.", HttpStatus.BAD_REQUEST),
     USER_PASSWORD_MISMATCH("Password mismatch for user: %s", HttpStatus.BAD_REQUEST),
     USER_EMAIL_MISMATCH("Email mismatch for user: %s", HttpStatus.BAD_REQUEST),    
     USER_OLD_ROLE_EXISTS("User already has role: %s", HttpStatus.BAD_REQUEST),
     USER_ROLE_ALREADY_EXISTS("User already has role: %s", HttpStatus.BAD_REQUEST),
+    USER_ROLE_REQUIRED("User must have at least one role", HttpStatus.BAD_REQUEST),
 
     //Role error
     ROLE_NOT_FOUND("Role not found with name: %s", HttpStatus.NOT_FOUND),
-    ROLE_ALREADY_EXISTS("Role already exists", HttpStatus.BAD_REQUEST),
-    ROLE_INVALID_INPUT("Invalid input", HttpStatus.BAD_REQUEST),
+    ROLE_ALREADY_EXISTS("Role already exists %s", HttpStatus.BAD_REQUEST),
+    ROLE_INVALID_INPUT("Invalid input %s", HttpStatus.BAD_REQUEST),
     ROLE_REQUIRED_FIELD_MISSING("Required role for user %s is missing", HttpStatus.BAD_REQUEST),
     
     //Authorization error

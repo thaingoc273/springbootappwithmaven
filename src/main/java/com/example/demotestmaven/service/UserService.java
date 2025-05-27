@@ -1,7 +1,9 @@
 package com.example.demotestmaven.service;
 
 import com.example.demotestmaven.dto.UserDTO;
+import com.example.demotestmaven.dto.UserExcelRequestDTO;
 import com.example.demotestmaven.dto.RoleDTO;
+import com.example.demotestmaven.dto.UserExcelResponseDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.repository.UserRepository;
 import com.example.demotestmaven.repository.RoleRepository;
@@ -31,6 +33,7 @@ import com.example.demotestmaven.exception.BusinessException;
 import com.example.demotestmaven.exception.ErrorCode;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.io.File;
@@ -42,6 +45,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 
@@ -58,6 +62,12 @@ public class UserService {
     private PasswordEncoder passwordEncoder;
 
     private final DataFormatter dataFormatter = new DataFormatter();
+
+    private String usernameHeader = "username";
+    private String passwordHeader = "password";
+    private String emailHeader = "email";
+    private String rolecodeHeader = "rolecode";
+    private String roletypeHeader = "roletype";
 
     @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers(String currentUsername) {
@@ -157,39 +167,59 @@ public class UserService {
     }
 
     @Transactional
-    public List<UserDTO> importUsersFromExcel(InputStream file) throws IOException {
-        List<User> users = new LinkedList<>();        
+    public List<UserExcelResponseDTO> importUsersFromExcel(InputStream file) throws IOException {     
 
         Workbook  workbook = WorkbookFactory.create(file);
         Sheet sheet = workbook.getSheetAt(0);
-        List<String> usernameContainer = new ArrayList<>();
-        List<String> emailContainer = new ArrayList<>();
-                
-        //Iterator<Row> rowIterator = sheet.iterator();
-        for (Row row : sheet) { 
-            if ((row.getRowNum() == 0) || (isRowEmpty(row))) {
-                continue;   
-            }
-            String username = getCellValue(row, 0);    
-            String password = getCellValue(row, 1);
-            String email = getCellValue(row, 2);
-            String rolecode = getCellValue(row, 3);
-            String roletype = getCellValue(row, 4);
-            // User user = new User();
+        Map<String, Integer> excelMappingHeader = new HashMap<>();
+        Map<String, User> users = new HashMap<>();
 
-            User user = checkMultipleRole(username, password, email, rolecode, roletype, usernameContainer, emailContainer, users);
- 
-            validateUserCreate(convertToDTO(user));
+        for (Row row : sheet) { 
+            if (row.getRowNum() == 0) {
+                excelMappingHeader = getExcelMappingHeader(row);
+                continue;
+            }
+            if (isRowEmpty(row)) {
+                continue;
+            }
+
+            UserExcelRequestDTO userExcelRequestDTO = convertToUserExcelRequestDTO(row, excelMappingHeader);
+
+            validateAndUpdateUser(userExcelRequestDTO, users); 
+
         }    
-        userRepository.saveAll(users);
-        return users.stream()
-                .map(this::convertToDTO)
+        userRepository.saveAll(users.values());
+        return users.values().stream()
+                .map(this::convertToUserExcelResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    private User checkMultipleRole(String username, String password, String email, String rolecode, String roletype, 
-                                    List<String> usernameContainer, List<String> emailContainer, List<User> users) {
-        if (!usernameContainer.contains(username)) {
+    private Map<String, Integer> getExcelMappingHeader(Row row) {
+        Map<String, Integer> excelMappingHeader = new HashMap<>();
+        for (int i = 0; i < row.getLastCellNum(); i++) {
+            excelMappingHeader.put(getCellValue(row, i), i);
+        }
+        return excelMappingHeader;
+    }
+
+    private UserExcelRequestDTO convertToUserExcelRequestDTO(Row row, Map<String, Integer> excelMappingHeader) {
+        UserExcelRequestDTO userExcelRequestDTO = new UserExcelRequestDTO();
+        userExcelRequestDTO.setUsername(getCellValue(row, excelMappingHeader.get(usernameHeader)));
+        userExcelRequestDTO.setPassword(getCellValue(row, excelMappingHeader.get(passwordHeader)));
+        userExcelRequestDTO.setEmail(getCellValue(row, excelMappingHeader.get(emailHeader)));
+        userExcelRequestDTO.setRolecode(getCellValue(row, excelMappingHeader.get(rolecodeHeader)));
+        userExcelRequestDTO.setRoletype(getCellValue(row, excelMappingHeader.get(roletypeHeader)));
+        return userExcelRequestDTO;
+    }
+
+    private void validateAndUpdateUser(UserExcelRequestDTO userExcelRequestDTO,  Map<String, User> users) {
+        String username = userExcelRequestDTO.getUsername();
+        String password = userExcelRequestDTO.getPassword();
+        String email = userExcelRequestDTO.getEmail();
+        String rolecode = userExcelRequestDTO.getRolecode();
+        String roletype = userExcelRequestDTO.getRoletype();
+
+        if (!users.containsKey(username)) {
             User user = new User();
             user.setUsername(username);
             user.setPassword(passwordEncoder.encode(password));
@@ -202,37 +232,26 @@ public class UserService {
             role.setUser(user);
             user.getRoles().add(role);
 
-            users.add(user);
-            usernameContainer.add(username);
-            emailContainer.add(email);
-            return user;
+            if (validateNewUser(user)) {
+                users.put(username, user);            
+            }
         } else {
-            int index = usernameContainer.indexOf(username);
-            User userOld = users.get(index);
-            
-            if (userOld.getRoles().stream()
-                                    .anyMatch(roleOld -> roleOld.getRolecode().equals(rolecode))) {
-                    throw new ApiException(ApiErrorType.USER_ROLE_ALREADY_EXISTS, username);
-            }
 
-            if (!passwordEncoder.matches(password, userOld.getPassword())) {
-                throw new ApiException(ApiErrorType.USER_PASSWORD_MISMATCH, username);
-            }
+            User existingUser = users.get(username);        
 
-            if (!userOld.getEmail().equals(email)) {
-                throw new ApiException(ApiErrorType.USER_EMAIL_MISMATCH, username);
-            }
+            if (validateExistingUser(existingUser, userExcelRequestDTO)) {
+                Role addRole = new Role();
+                addRole.setRolecode(rolecode);
+                addRole.setRoletype(roletype);
 
-            Role addRole = new Role();
-            addRole.setRolecode(rolecode);
-            addRole.setRoletype(roletype);
-    
-            addRole.setUser(userOld);
-            userOld.getRoles().add(addRole);
-            
-            users.add(userOld);
-            return userOld;
-        }
+                addRole.setUser(existingUser);
+                existingUser.getRoles().add(addRole);
+
+                if (validateNewUser(existingUser)) {
+            users.put(username, existingUser);
+                }
+            }            
+        }       
     }
 
     private String getCellValue(Row row, int columnIndex) {
@@ -251,6 +270,80 @@ public class UserService {
             if (cell != null && cell.getCellType() != CellType.BLANK) {
                 String value = dataFormatter.formatCellValue(cell).trim();
                 if (!value.isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean validateExistingUser(User existingUser, UserExcelRequestDTO userExcelRequestDTO) {
+        if (existingUser.getRoles().stream()
+                .anyMatch(roleOld -> roleOld.getRolecode().equals(userExcelRequestDTO.getRolecode()))) {
+        // throw new ApiException(ApiErrorType.USER_ROLE_ALREADY_EXISTS, username);
+        return false;
+        }
+
+        if (!passwordEncoder.matches(userExcelRequestDTO.getPassword(), existingUser.getPassword())) {
+        // throw new ApiException(ApiErrorType.USER_PASSWORD_MISMATCH, username);
+        return false;
+        }
+
+        if (!existingUser.getEmail().equals(userExcelRequestDTO.getEmail())) {
+        // throw new ApiException(ApiErrorType.USER_EMAIL_MISMATCH, username);
+        return false;
+        }
+        return true;
+    }
+
+
+
+    private boolean validateNewUser(User user) {
+        if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+            // throw new ApiException(ApiErrorType.USER_ALREADY_EXISTS, user.getUsername());
+            return false;
+        }
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            // throw new ApiException(ApiErrorType.USER_EMAIL_ALREADY_EXISTS, user.getEmail());
+            return false;
+        }
+        if (user.getPassword().length() < 8) {
+            // throw new ApiException(ApiErrorType.USER_INVALID_PASSWORD, user.getPassword());
+            return false;
+        }
+        if (!user.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            // throw new ApiException(ApiErrorType.USER_INVALID_EMAIL, user.getEmail());
+            return false;
+        }
+        if (user.getRoles().isEmpty()) {
+            // throw new ApiException(ApiErrorType.USER_ROLE_REQUIRED, user.getUsername());
+            return false;
+        }
+        if (user.getRoles().stream().anyMatch(role -> role.getRoletype() == null)) {
+            // throw new ApiException(ApiErrorType.USER_ROLE_TYPE_INVALID, user.getUsername());
+            return false;
+        }
+
+        if (user.getRoles().stream().anyMatch(role -> role.getRolecode() == null)) {
+            // throw new ApiException(ApiErrorType.USER_ROLE_CODE_INVALID, user.getUsername());
+            return false;
+        }
+        if (user.getRoles().stream().anyMatch(role -> role.getRolecode().isEmpty())) {
+            // throw new ApiException(ApiErrorType.USER_ROLE_CODE_INVALID, user.getUsername());
+            return false;
+        }
+        if (user.getRoles().stream().anyMatch(role -> role.getRoletype().isEmpty())) {
+            // throw new ApiException(ApiErrorType.USER_ROLE_TYPE_INVALID, user.getUsername());
+            return false;
+        }
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            for (Role role : user.getRoles()) {
+                if (!StringUtils.hasText(role.getRolecode())) {
+                    // throw new ApiException(ApiErrorType.USER_ROLE_CODE_INVALID, user.getUsername());
+                    return false;
+                }
+                if (!StringUtils.hasText(role.getRoletype())) {
+                    // throw new ApiException(ApiErrorType.USER_ROLE_TYPE_INVALID, user.getUsername());
                     return false;
                 }
             }
@@ -306,9 +399,6 @@ public class UserService {
         if (userDTO.getRoles().stream().anyMatch(role -> role.getRoletype() == null)) {
             throw new ApiException(ApiErrorType.USER_ROLE_TYPE_INVALID);
         }
-        
-
-
     }
 
     private User updateUserRoles(User user, List<RoleDTO> newRoles) {
@@ -397,6 +487,17 @@ public class UserService {
         // Check if current user has admin or manager role
         return roleRepository.findByUser_Username(currentUser.getUsername()).stream()
                 .anyMatch(role -> role.getRolecode().equals("ADMIN") || role.getRolecode().equals("MANAGER"));
+    }
+
+    private UserExcelResponseDTO convertToUserExcelResponseDTO(User user) {
+        UserExcelResponseDTO dto = new UserExcelResponseDTO();
+        dto.setUsername(user.getUsername());
+        dto.setEmail(user.getEmail());
+        dto.setPassword(user.getPassword());
+        dto.setRoles(user.getRoles().stream()
+            .map(role -> role.getRolecode())
+            .collect(Collectors.toSet()));
+        return dto;
     }
 
     private UserDTO convertToDTO(User user) {
