@@ -11,5 +11,7 @@
 ```
 - Need to handle `non String` type in excel
 - Need to handle empty rows
+  
 ### Links to learn
-    - [Short video how to implement](https://www.youtube.com/watch?v=624IUCdmJMg)
+
+[Short video how to implement](https://www.youtube.com/watch?v=624IUCdmJMg)
