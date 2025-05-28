@@ -6,6 +6,6 @@
   - Refactor excel import function
   - Create test for excel import function
   - Create Data Object Tranform for request and response
-28.05.2025
+- 28.05.2025
     - Build Jar file using Maven plugin (in deployment)
     - Read file
