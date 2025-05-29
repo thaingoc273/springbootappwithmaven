@@ -10,7 +10,7 @@ import lombok.Getter;
 public enum ApiErrorType {
     //User error
     USER_NOT_FOUND("User not found with username: %s", HttpStatus.NOT_FOUND),
-    USER_ALREADY_EXISTS("User already exists %s", HttpStatus.BAD_REQUEST),
+    USER_ALREADY_EXISTS("User already exists: %s", HttpStatus.BAD_REQUEST),
     USER_INVALID_INPUT("Invalid input", HttpStatus.BAD_REQUEST),
     USER_INVALID_USERNAME("Invalid username %s", HttpStatus.BAD_REQUEST),
     USER_INVALID_PASSWORD("Invalid password %s", HttpStatus.BAD_REQUEST),
@@ -31,6 +31,9 @@ public enum ApiErrorType {
     ROLE_ALREADY_EXISTS("Role already exists %s", HttpStatus.BAD_REQUEST),
     ROLE_INVALID_INPUT("Invalid input %s", HttpStatus.BAD_REQUEST),
     ROLE_REQUIRED_FIELD_MISSING("Required role for user %s is missing", HttpStatus.BAD_REQUEST),
+
+    // Excel error
+    USER_EXCEL_UNREADABLE_DATA("Unreadable data", HttpStatus.BAD_REQUEST),
     
     //Authorization error
     UNAUTHORIZED_ACCESS("Unauthorized access", HttpStatus.UNAUTHORIZED),

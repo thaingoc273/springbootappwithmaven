@@ -2,6 +2,7 @@ package com.example.demotestmaven.controller;
 
 import com.example.demotestmaven.dto.RoleDTO;
 import com.example.demotestmaven.dto.UserDTO;
+import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.exception.ValidationException;
 import com.example.demotestmaven.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,10 +10,15 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -26,6 +32,7 @@ import static org.mockito.Mockito.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.io.ClassPathResource;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -45,6 +52,14 @@ class UserControllerTest {
     private String dateTimeBefore = "2025-02-30";
     private String dateTimeAfter = "2025-02-20";
     private String adminUser = "testuser1";
+    private String uploadType = "file";
+
+    private String testDataPath = "testdata/";
+
+    private String testNormalFile = testDataPath + "test_normal.xlsx";
+    private String testEmptyFile = testDataPath + "test_empty.xlsx";
+    private String testDuplicateUsernameFile = testDataPath + "test_duplicateusername.xlsx";
+    private String testDuplicateEmailFile = testDataPath + "test_duplicateemail.xlsx";
 
     @BeforeEach
     void setUp() {
@@ -82,7 +97,7 @@ class UserControllerTest {
         ResponseEntity<List<UserDTO>> response = userController.getAllUsers(adminUser);
 
         // Assert
-        assertNotNull(response);
+        assertNotNull(response);        
         assertEquals(200, response.getStatusCode().value());
         assertEquals(testUsers, response.getBody());
         verify(userService, times(1)).getAllUsers(adminUser);
@@ -158,9 +173,30 @@ class UserControllerTest {
         verify(userService, times(1)).getUsersByCreatedAtBeforeAndAfter(currentUsername, dateTimeBefore, dateTimeAfter);
     }
 
+
+
+
+
+
     @Test
     void getAllUsers_WhenNormal_ShouldReturnListOfUsers_Full_Integration_Test(){
         
 
+    }
+
+    private MultipartFile getMockMultipartFile(String fileName) {
+        try {
+            ClassPathResource resource = new ClassPathResource(fileName);
+            InputStream fileInputStream = resource.getInputStream();
+            String filename = resource.getFilename();
+            MockMultipartFile multipartFile = new MockMultipartFile(
+                                                             uploadType, 
+                                                             filename, 
+                                                             MediaType.MULTIPART_FORM_DATA_VALUE, 
+                                                             fileInputStream);
+            return multipartFile;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to get mock multipart file", e);
+        }
     }
 }

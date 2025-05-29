@@ -1,6 +1,7 @@
 package com.example.demotestmaven.service;
 
 import com.example.demotestmaven.dto.UserDTO;
+import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.exception.UnauthorizedException;
 import com.example.demotestmaven.exception.ValidationException;
@@ -16,10 +17,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -39,9 +46,9 @@ import com.example.demotestmaven.exception.ApiException;
 import com.example.demotestmaven.exception.BusinessException;
 import com.example.demotestmaven.exception.ErrorCode;
 
-@DataJpaTest
-@ActiveProfiles("test")
-@Transactional
+// @DataJpaTest
+// @ActiveProfiles("test")
+// @Transactional
 class UserServiceTest {
 
     @Mock
@@ -49,7 +56,7 @@ class UserServiceTest {
 
     @Mock
     private RoleRepository roleRepository;
-
+    
     @Mock
     private PasswordEncoder passwordEncoder;
 
@@ -66,7 +73,18 @@ class UserServiceTest {
     private String normalUsername = "phuong";   
     private String dateBefore = "2025-05-30";
     private String dateAfter = "2025-05-15";
-    private String invalidDate = "invalid-date-format";    
+    private String invalidDate = "invalid-date-format";
+    private String uploadType = "file";    
+
+    private String testDataPath = "testdata/";
+
+    private String testNormalFile = testDataPath + "test_normal.xlsx";
+    private String testEmptyFile = testDataPath + "test_empty.xlsx";
+    private String testDuplicateUsernameFile = testDataPath + "test_duplicateusername.xlsx";
+    private String testDuplicateEmailFile = testDataPath + "test_duplicateemail.xlsx";     
+    
+    private String validSuccess = "User created successfully";
+    private String validError = "User creation failed";
 
     @BeforeEach
     void setUp() {
@@ -174,7 +192,7 @@ class UserServiceTest {
 
         // Act
         UserDTO result = userService.updateUser(username, username, updateDTO);
-
+    
         // Assert
         assertNotNull(result);
         verify(userRepository, times(2)).findByUsername(username);
@@ -287,6 +305,78 @@ class UserServiceTest {
         assertEquals(ApiErrorType.FORBIDDEN_OPERATION.getMessage(), exception.getMessage());
     }
 
+
+    @Test
+    void importUsersFromExcel_WhenNormal_ShouldReturnSuccess() throws Exception {
+
+        // Arrange
+        MultipartFile file = getMockMultipartFile(testNormalFile);
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        // Act
+        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+
+        // Check the user is created in database
+        // User user = userRepository.findByUsername(testUser.getUsername()).orElse(null);
+        // assertNotNull(user);
+        // assertEquals(testUser.getUsername(), user.getUsername());
+        // assertEquals(testUser.getEmail(), user.getEmail());
+        // assertEquals("encodedPassword", user.getPassword());
+        // assertEquals(testUser.getCreatedAt(), user.getCreatedAt());
+        // assertEquals(testUser.getUpdatedAt(), user.getUpdatedAt());
+    }
+
+    @Test
+    void importUsersFromExcel_WhenEmptyFile_ShouldReturnEmptyList() throws Exception {
+        // Arrange
+        MultipartFile file = getMockMultipartFile(testEmptyFile);
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        // Act
+        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+
+        // Assert
+        assertEquals(Collections.emptyList(), result);
+    }
+    
+    @Test
+    void importUsersFromExcel_WhenDuplicateUsername_ShouldReturnError() throws Exception {
+
+        // Arrange
+        MultipartFile file = getMockMultipartFile(testDuplicateUsernameFile);
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(testUser));
+
+        // Act
+        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+
+        // Assert
+        assertEquals(1, result.size());
+        assertEquals(validError, result.get(0).getStatus());
+        assertEquals(ApiErrorType.USER_ALREADY_EXISTS.getFormattedMessage(testUser.getUsername()), result.get(0).getMessages().get(0));        
+    }   
+
+
+    @Test
+    void importUsersFromExcel_WhenDuplicateEmail_ShouldReturnError() throws Exception {
+
+        // Arrange
+        MultipartFile file = getMockMultipartFile(testDuplicateEmailFile);
+        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
+
+        // Act
+        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+
+        // Assert
+        assertEquals(1, result.size());
+        assertEquals(validError, result.get(0).getStatus());
+        assertEquals(ApiErrorType.USER_EMAIL_ALREADY_EXISTS.getFormattedMessage(testUser.getEmail()), result.get(0).getMessages().get(0));
+    }
+    
+
     private LocalDateTime convertToLocalDateTime(String time) {         
         try {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
@@ -316,5 +406,21 @@ class UserServiceTest {
         role.setCreatedAt(LocalDateTime.now());
         role.setUpdatedAt(LocalDateTime.now());
         return role;
+    }
+
+    private MultipartFile getMockMultipartFile(String fileName) {
+        try {
+            ClassPathResource resource = new ClassPathResource(fileName);
+            InputStream fileInputStream = resource.getInputStream();
+            String filename = resource.getFilename();
+            MockMultipartFile multipartFile = new MockMultipartFile(
+                                                                uploadType, 
+                                                                filename, 
+                                                                MediaType.MULTIPART_FORM_DATA_VALUE, 
+                                                                fileInputStream);
+            return multipartFile;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to get mock multipart file", e);
+        }
     }
 } 

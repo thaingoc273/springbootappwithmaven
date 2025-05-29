@@ -7,5 +7,6 @@
   - Create test for excel import function
   - Create Data Object Tranform for request and response
 - 28.05.2025
-    - Build Jar file using Maven plugin (in deployment)
-    - Read file
+  - Build Jar file using Maven plugin (in deployment)
+  - Read file
+  - Solid priciple in software engineering

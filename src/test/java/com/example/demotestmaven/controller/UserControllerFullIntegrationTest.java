@@ -6,15 +6,20 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -23,10 +28,14 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.type.TypeReference;
+
+import org.apache.tomcat.util.file.ConfigurationSource.Resource;
+import org.springframework.core.io.ClassPathResource;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 
 import com.example.demotestmaven.dto.UserDTO;
+import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.dto.RoleDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.entity.Role;
@@ -66,6 +75,20 @@ public class UserControllerFullIntegrationTest {
     private String newUsername = "newuser";
     private String newPassword = "newpassword";
     private String newEmail = "new@example.com";
+
+    private String validSuccess = "User created successfully";
+    private String validError = "User creation failed";
+
+    private String endpointImportExcel = "/api/users/import";
+    private String uploadType = "file";
+
+
+    private String testDataPath = "testdata/";
+
+    private String testNormalFile = testDataPath + "test_normal.xlsx";
+    private String testEmptyFile = testDataPath + "test_empty.xlsx";
+    private String testDuplicateUsernameFile = testDataPath + "test_duplicateusername.xlsx";
+    private String testDuplicateEmailFile = testDataPath + "test_duplicateemail.xlsx";
 
     @BeforeEach
     void cleanDatabase() {
@@ -244,6 +267,80 @@ public class UserControllerFullIntegrationTest {
         assertNotNull(actualUser.getRoles());
         assertFalse(actualUser.getRoles().isEmpty());
         assertEquals("USER", actualUser.getRoles().get(0).getRolecode());
-    } 
+    }
 
+    @Test
+    void importUsersFromExcel_WhenEmptyFile_ShouldReturnEmptyResponse() throws Exception {
+        ClassPathResource resource = new ClassPathResource(testEmptyFile);  
+        InputStream fileInputStream = resource.getInputStream();
+        String filename = resource.getFilename();
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                                                             uploadType, 
+                                                             filename, 
+                                                             MediaType.MULTIPART_FORM_DATA_VALUE, 
+                                                             fileInputStream);
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.multipart(endpointImportExcel).file(multipartFile))
+                                    .andExpect(MockMvcResultMatchers.status().isOk())
+                                    .andReturn();
+        String responseBody = result.getResponse().getContentAsString();
+        List<UserExcelFullResponseDTO> actualResponse = objectMapper.readValue(responseBody, new TypeReference<List<UserExcelFullResponseDTO>>() {});
+        assertEquals(actualResponse.size(), 0);
+    }
+    
+    @Test
+    void importUsersFromExcel_WhenNormal_ShouldReturnSuccess() throws Exception {
+        ClassPathResource resource = new ClassPathResource(testNormalFile);
+        InputStream fileInputStream = resource.getInputStream();
+        String filename = resource.getFilename();
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                                                             uploadType, 
+                                                             filename, 
+                                                             MediaType.MULTIPART_FORM_DATA_VALUE, 
+                                                             fileInputStream);
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.multipart(endpointImportExcel).file(multipartFile))
+                                    .andExpect(MockMvcResultMatchers.status().isOk())
+                                    .andReturn();
+        String responseBody = result.getResponse().getContentAsString();
+        List<UserExcelFullResponseDTO> actualResponse = objectMapper.readValue(responseBody, new TypeReference<List<UserExcelFullResponseDTO>>() {});
+        assertEquals(actualResponse.size(), 1);
+        assertEquals(actualResponse.get(0).getStatus(), validSuccess);
+    }
+
+    @Test
+    void importUsersFromExcel_WhenDuplicateUsername_ShouldReturnError() throws Exception {
+        ClassPathResource resource = new ClassPathResource(testDuplicateUsernameFile);
+        InputStream fileInputStream = resource.getInputStream();    
+        String filename = resource.getFilename();
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                                                             uploadType, 
+                                                             filename, 
+                                                             MediaType.MULTIPART_FORM_DATA_VALUE, 
+                                                             fileInputStream);
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.multipart(endpointImportExcel).file(multipartFile))
+                                    .andExpect(MockMvcResultMatchers.status().isOk())
+                                    .andReturn();
+        String responseBody = result.getResponse().getContentAsString();
+        List<UserExcelFullResponseDTO> actualResponse = objectMapper.readValue(responseBody, new TypeReference<List<UserExcelFullResponseDTO>>() {});
+        assertEquals(actualResponse.size(), 1);
+        assertEquals(actualResponse.get(0).getStatus(), validError);
+    }
+
+    @Test
+    void importUsersFromExcel_WhenDuplicateEmail_ShouldReturnError() throws Exception {
+        ClassPathResource resource = new ClassPathResource(testDuplicateEmailFile);
+        InputStream fileInputStream = resource.getInputStream();
+        String filename = resource.getFilename();
+        MockMultipartFile multipartFile = new MockMultipartFile(
+                                                             uploadType, 
+                                                             filename, 
+                                                             MediaType.MULTIPART_FORM_DATA_VALUE, 
+                                                             fileInputStream);
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.multipart(endpointImportExcel).file(multipartFile))
+                                    .andExpect(MockMvcResultMatchers.status().isOk())
+                                    .andReturn();   
+        String responseBody = result.getResponse().getContentAsString();
+        List<UserExcelFullResponseDTO> actualResponse = objectMapper.readValue(responseBody, new TypeReference<List<UserExcelFullResponseDTO>>() {});
+        assertEquals(actualResponse.size(), 1);
+        assertEquals(actualResponse.get(0).getStatus(), validError);
+    }   
 }
