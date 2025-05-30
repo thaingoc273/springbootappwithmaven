@@ -1,5 +1,7 @@
 package com.example.demotestmaven.exception;
 
+import org.springframework.http.HttpStatus;
+
 public class ApiException extends RuntimeException {
     private final ApiErrorType errorType; 
     private final transient Object[] args;
@@ -34,5 +36,9 @@ public class ApiException extends RuntimeException {
 
     public Object[] getArgs() {
         return args;
+    }
+
+    public HttpStatus getStatusCode() {
+        return errorType.getStatus();
     }
 }

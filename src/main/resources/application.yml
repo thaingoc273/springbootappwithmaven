@@ -9,10 +9,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
         dialect: org.hibernate.dialect.MySQL8Dialect
   flyway:
     enabled: true
@@ -28,8 +28,11 @@ logging:
   level:
     org:
       hibernate:
-        SQL: 'INFO'
+        SQL: OFF
         type:
           descriptor:
             sql:
-              BasicBinder: TRACE
+              BasicBinder: OFF
+    com:
+      yourpackage: DEBUG
+  

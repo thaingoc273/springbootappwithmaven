@@ -1,5 +1,6 @@
 package com.example.demotestmaven.service;
 
+import com.example.demotestmaven.constants.GlobalConstants;
 import com.example.demotestmaven.dto.UserDTO;
 import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.entity.User;
@@ -7,6 +8,7 @@ import com.example.demotestmaven.exception.UnauthorizedException;
 import com.example.demotestmaven.exception.ValidationException;
 import com.example.demotestmaven.entity.Role;
 import com.example.demotestmaven.repository.UserRepository;
+import com.example.demotestmaven.testconstants.TestConstants;
 
 import jakarta.transaction.Transactional;
 
@@ -18,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -83,8 +86,8 @@ class UserServiceTest {
     private String testDuplicateUsernameFile = testDataPath + "test_duplicateusername.xlsx";
     private String testDuplicateEmailFile = testDataPath + "test_duplicateemail.xlsx";     
     
-    private String validSuccess = "User created successfully";
-    private String validError = "User creation failed";
+    private String successStatus = GlobalConstants.successStatus;
+    private String errorStatus = GlobalConstants.errorStatus;
 
     @BeforeEach
     void setUp() {
@@ -310,52 +313,52 @@ class UserServiceTest {
     void importUsersFromExcel_WhenNormal_ShouldReturnSuccess() throws Exception {
 
         // Arrange
-        MultipartFile file = getMockMultipartFile(testNormalFile);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_NORMAL_FILE);
+        // when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         // Act
         List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
 
         // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
-
-        // Check the user is created in database
-        // User user = userRepository.findByUsername(testUser.getUsername()).orElse(null);
-        // assertNotNull(user);
-        // assertEquals(testUser.getUsername(), user.getUsername());
-        // assertEquals(testUser.getEmail(), user.getEmail());
-        // assertEquals("encodedPassword", user.getPassword());
-        // assertEquals(testUser.getCreatedAt(), user.getCreatedAt());
-        // assertEquals(testUser.getUpdatedAt(), user.getUpdatedAt());
-    }
+        assertEquals(successStatus, result.get(0).getStatusUpdate());
+     }
 
     @Test
-    void importUsersFromExcel_WhenEmptyFile_ShouldReturnEmptyList() throws Exception {
+    void importUsersFromExcel_WhenEmptyFile_ShouldThrowApiException() throws Exception {
         // Arrange
-        MultipartFile file = getMockMultipartFile(testEmptyFile);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
-        // Act
-        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_EMPTY_FILE);
+        // when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
 
-        // Assert
-        assertEquals(Collections.emptyList(), result);
+        // Act & Assert
+        ApiException exception = assertThrows(ApiException.class, () -> {
+            userService.importUsersFromExcel(file);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals(ApiErrorType.USER_EXCEL_READING_EMPTY_FILE.getMessage(), exception.getMessage());
+        
     }
-    
     @Test
     void importUsersFromExcel_WhenDuplicateUsername_ShouldReturnError() throws Exception {
 
         // Arrange
-        MultipartFile file = getMockMultipartFile(testDuplicateUsernameFile);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_DUPLICATE_USERNAME_FILE);
+        // when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userRepository.findByUsername(anyString())).thenReturn(Optional.of(testUser));
 
         // Act
         List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
 
         // Assert
+        String actualErrorStatus = result.get(0).getStatusUpdate();
+        String expectedErrorStatus = errorStatus;
+        List<String> actualMessages = result.get(0).getMessages();
+        String expectedMessage = ApiErrorType.USER_ALREADY_EXISTS.getFormattedMessage(testUser.getUsername());
+
         assertEquals(1, result.size());
-        assertEquals(validError, result.get(0).getStatusUpdate());
-        assertEquals(ApiErrorType.USER_ALREADY_EXISTS.getFormattedMessage(testUser.getUsername()), result.get(0).getMessages().get(0));        
+        assertEquals(expectedErrorStatus, actualErrorStatus);
+        assertEquals(expectedMessage, actualMessages.get(0));
+        // assertTrue(actualMessages.contains(expectedMessage));        
     }   
 
 
@@ -363,8 +366,8 @@ class UserServiceTest {
     void importUsersFromExcel_WhenDuplicateEmail_ShouldReturnError() throws Exception {
 
         // Arrange
-        MultipartFile file = getMockMultipartFile(testDuplicateEmailFile);
-        when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_DUPLICATE_EMAIL_FILE);
+        // when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.of(testUser));
 
         // Act
@@ -372,10 +375,139 @@ class UserServiceTest {
 
         // Assert
         assertEquals(1, result.size());
-        assertEquals(validError, result.get(0).getStatusUpdate());
+        assertEquals(errorStatus, result.get(0).getStatusUpdate());
         assertEquals(ApiErrorType.USER_EMAIL_ALREADY_EXISTS.getFormattedMessage(testUser.getEmail()), result.get(0).getMessages().get(0));
     }
-    
+    @Test
+    void importUsersFromExcel_WhenMissingUsername_ShouldReturnMissingUsernameError() throws Exception {
+        // Arrange
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_MISSING_USERNAME_FILE);
+        // when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+
+        // Act
+        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+
+        // Assert
+        String actualErrorStatus = result.get(0).getStatusUpdate();
+        String expectedErrorStatus = errorStatus;
+        List<String> actualMessages = result.get(0).getMessages();
+        String expectedMessage = ApiErrorType.USER_EXCEL_MISSING_DATA.getFormattedMessage(TestConstants.USER_EXCEL_IMPORT_USERNAME_HEADER);
+
+        assertEquals(1, result.size());
+        assertEquals(expectedErrorStatus, actualErrorStatus);
+        assertTrue(actualMessages.contains(expectedMessage));
+    }
+    @Test
+    void importUsersFromExcel_WhenMissingPassword_ShouldReturnInvalidPasswordError() throws Exception {
+        // Arrange
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_MISSING_PASSWORD_FILE);
+        // when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+
+        // Act
+        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+
+        // Assert
+        String actualErrorStatus = result.get(0).getStatusUpdate();
+        String expectedErrorStatus = errorStatus;
+        List<String> actualMessages = result.get(0).getMessages();
+        String expectedMessage = ApiErrorType.USER_EXCEL_MISSING_DATA.getFormattedMessage(GlobalConstants.PASSWORD_HEADER);
+
+        assertEquals(1, result.size());
+        assertEquals(expectedErrorStatus, actualErrorStatus);
+        assertEquals(expectedMessage, actualMessages.get(0));
+        assertTrue(actualMessages.contains(expectedMessage));
+    }
+    @Test
+    void importUsersFromExcel_WhenMissingEmail_ShouldReturnInvalidEmailError() throws Exception {
+        // Arrange
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_MISSING_EMAIL_FILE);
+        // when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+
+        // Act
+        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+
+        // Assert
+        String actualErrorStatus = result.get(0).getStatusUpdate();
+        String expectedErrorStatus = errorStatus;
+        List<String> actualMessages = result.get(0).getMessages();
+        String expectedMessage = ApiErrorType.USER_EXCEL_MISSING_DATA.getFormattedMessage(GlobalConstants.EMAIL_HEADER);
+
+        assertEquals(1, result.size());
+        assertEquals(expectedErrorStatus, actualErrorStatus);
+        assertEquals(expectedMessage, actualMessages.get(0));
+        assertTrue(actualMessages.contains(expectedMessage));
+    }
+    @Test
+    void importUsersFromExcel_WhenMissingRoleCode_ShouldReturnMissingRoleCodeError() throws Exception {
+        // Arrange
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_MISSING_ROLE_CODE_FILE);
+
+        // Act
+        List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
+
+        // Assert
+        String actualErrorStatus = result.get(0).getStatusUpdate();
+        String expectedErrorStatus = errorStatus;
+        List<String> actualMessages = result.get(0).getMessages();
+        String expectedMessage = ApiErrorType.USER_EXCEL_MISSING_DATA.getFormattedMessage(GlobalConstants.ROLECODE_HEADER);
+
+        assertEquals(1, result.size());
+        assertEquals(expectedErrorStatus, actualErrorStatus);
+        assertTrue(actualMessages.contains(expectedMessage));
+    }
+
+    @Test
+    void importUsersFromExcel_WhenFalseTypeFile_ShouldReturnInvalidTypeFileError() throws Exception {
+        // Arrange
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_FALSE_TYPE_FILE);
+
+        // Act
+        ApiException exception = assertThrows(ApiException.class, () -> {
+            userService.importUsersFromExcel(file);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage(), exception.getMessage());
+    }   
+
+    @Test
+    void importUsersFromExcel_WhenFalseStructureFile_ShouldReturnInvalidStructureFileError() throws Exception {
+        // Arrange
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_FALSE_STRUCTURE_FILE);
+
+        // Act
+        ApiException exception = assertThrows(ApiException.class, () -> {
+            userService.importUsersFromExcel(file);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage(), exception.getMessage());
+    }
+
+
+    @Test
+    void importUserFromExcel_WhenFormatMisMatch_ShouldThrowException() throws Exception {
+        // Arrage
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_FORMAT_MISMATCH_FILE);
+        // Act
+        ApiException exception = assertThrows(ApiException.class, () ->{
+            userService.importUsersFromExcel(file);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage(), exception.getMessage());
+    }
+
+    @Test
+    void importUserExcel_WhenFalseStructure_ShouldThrowsException() {
+        MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_FALSE_STRUCTURE_FILE);
+
+        ApiException exception = assertThrows(ApiException.class, () ->{
+            userService.importUsersFromExcel(file);
+        });
+        assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+        assertEquals(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage(), exception.getMessage());
+
+    }
+
+
 
     private LocalDateTime convertToLocalDateTime(String time) {         
         try {

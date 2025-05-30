@@ -28,6 +28,8 @@ public enum ApiErrorType {
     USER_ROLE_TYPE_EMPTY("Role type is empty", HttpStatus.BAD_REQUEST),
     USER_ROLE_CODE_EMPTY("Role code is empty", HttpStatus.BAD_REQUEST),
     USER_EXCEL_MISSING_DATA("Missing data for field %s", HttpStatus.BAD_REQUEST),
+    USER_EXCEL_MISSING_EMAIL_DATA("Missing email data", HttpStatus.BAD_REQUEST),
+
     
 
     //Role error
@@ -37,7 +39,9 @@ public enum ApiErrorType {
     ROLE_REQUIRED_FIELD_MISSING("Required role for user %s is missing", HttpStatus.BAD_REQUEST),
     ROLE_CODE_TYPE_MISMATCH("Role code and type mismatch", HttpStatus.BAD_REQUEST),
     ROLE_CODE_MISSING("Role code is missing", HttpStatus.BAD_REQUEST),
+    ROLE_CODE_EMPTY_SUBSTRING("One of the role codes in the list is empty", HttpStatus.BAD_REQUEST),
     ROLE_TYPE_MISSING("Role type is missing", HttpStatus.BAD_REQUEST),
+    ROLE_TYPE_EMPTY_SUBSTRING("One of the role types in the list is empty", HttpStatus.BAD_REQUEST),
     ROLE_CODE_DUPLICATE("Role code is duplicate", HttpStatus.BAD_REQUEST),
 
     // Excel error

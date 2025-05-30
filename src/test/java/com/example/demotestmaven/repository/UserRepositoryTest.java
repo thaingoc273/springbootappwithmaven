@@ -151,5 +151,6 @@ public class UserRepositoryTest {
 
         // Assert
         assertThat(result).isEmpty();
-    }  
+    }   
+
 } 

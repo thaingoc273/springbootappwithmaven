@@ -49,3 +49,9 @@
         </Loggers>
     </Configuration>
 ```
+- Disable Hibernat Sql logging: change in `application.yml`
+
+    - 1. Change `show-sql: false`
+    - 2. Change `format_sql: false`
+
+This will disable SQL statement logging in the console and turn off SQL formatting.
