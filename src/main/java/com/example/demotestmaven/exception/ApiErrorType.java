@@ -25,16 +25,26 @@ public enum ApiErrorType {
     USER_OLD_ROLE_EXISTS("User already has role: %s", HttpStatus.BAD_REQUEST),
     USER_ROLE_ALREADY_EXISTS("User already has role: %s", HttpStatus.BAD_REQUEST),
     USER_ROLE_REQUIRED("User must have at least one role", HttpStatus.BAD_REQUEST),
+    USER_ROLE_TYPE_EMPTY("Role type is empty", HttpStatus.BAD_REQUEST),
+    USER_ROLE_CODE_EMPTY("Role code is empty", HttpStatus.BAD_REQUEST),
+    USER_EXCEL_MISSING_DATA("Missing data for field %s", HttpStatus.BAD_REQUEST),
+    
 
     //Role error
     ROLE_NOT_FOUND("Role not found with name: %s", HttpStatus.NOT_FOUND),
     ROLE_ALREADY_EXISTS("Role already exists %s", HttpStatus.BAD_REQUEST),
     ROLE_INVALID_INPUT("Invalid input %s", HttpStatus.BAD_REQUEST),
     ROLE_REQUIRED_FIELD_MISSING("Required role for user %s is missing", HttpStatus.BAD_REQUEST),
+    ROLE_CODE_TYPE_MISMATCH("Role code and type mismatch", HttpStatus.BAD_REQUEST),
+    ROLE_CODE_MISSING("Role code is missing", HttpStatus.BAD_REQUEST),
+    ROLE_TYPE_MISSING("Role type is missing", HttpStatus.BAD_REQUEST),
+    ROLE_CODE_DUPLICATE("Role code is duplicate", HttpStatus.BAD_REQUEST),
 
     // Excel error
     USER_EXCEL_UNREADABLE_DATA("Unreadable data", HttpStatus.BAD_REQUEST),
-    
+    USER_EXCEL_READING_EMPTY_DATA("Reading empty data", HttpStatus.BAD_REQUEST),
+    USER_EXCEL_READING_EMPTY_FILE("Reading empty file", HttpStatus.BAD_REQUEST),
+
     //Authorization error
     UNAUTHORIZED_ACCESS("Unauthorized access", HttpStatus.UNAUTHORIZED),
     FORBIDDEN_OPERATION("Forbidden operation, only admin can access", HttpStatus.FORBIDDEN),

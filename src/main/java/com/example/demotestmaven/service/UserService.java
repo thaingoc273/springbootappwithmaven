@@ -8,6 +8,9 @@ import com.example.demotestmaven.dto.UserExcelResponseDTO;
 import com.example.demotestmaven.dto.UserExcelValidateDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.repository.UserRepository;
+
+import ch.qos.logback.core.util.StringUtil;
+
 import com.example.demotestmaven.repository.RoleRepository;
 import com.example.demotestmaven.exception.ResourceNotFoundException;
 import com.example.demotestmaven.exception.UnauthorizedException;
@@ -48,6 +51,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -67,6 +71,7 @@ public class UserService {
 
     private final DataFormatter dataFormatter = new DataFormatter();
 
+    private String rowNumberHeader = "rownumber";
     private String usernameHeader = "username";
     private String passwordHeader = "password";
     private String emailHeader = "email";
@@ -80,6 +85,7 @@ public class UserService {
     private String messageError = "User creation failed";
     private String validSuccess = "User created successfully";
     private String validError = "User creation failed";  
+    private String noNameFound = "No name found";
 
     @Transactional(readOnly = true)
     public List<UserDTO> getAllUsers(String currentUsername) {
@@ -179,77 +185,84 @@ public class UserService {
     }
 
     @Transactional
-    public List<UserExcelFullResponseDTO> importUsersFromExcel(MultipartFile file) {     
-        List<UserExcelFullResponseDTO> userExcelFullResponseDTOs = new ArrayList<>();
-        Sheet sheet = null;
-        Map<String, Integer> excelMappingHeader = new HashMap<>();
-        Map<String, User> users = new HashMap<>();
-        sheet = getSheet(file);
+    public List<UserExcelFullResponseDTO> importUsersFromExcel(MultipartFile file) {    
 
-        for (Row row : sheet) {
-            // Reading header row
-            if (row.getRowNum() == 0) {
-                excelMappingHeader = getExcelMappingHeader(row);
-                continue;
-            }
-            // Skip empty rows
-            if (isRowEmpty(row)) {
-                continue;
-            }
+        List<UserExcelFullResponseDTO> userExcelFullResponseDTOs = new ArrayList<>();       
+        List<UserExcelRequestDTO> userExcelRequestDTOs = getUserExcelRequestDTOs(file);
+        
+        if (userExcelRequestDTOs.isEmpty()) {
+            throw new ApiException(ApiErrorType.USER_EXCEL_READING_EMPTY_FILE);
+        }
 
-            // Convert row to UserExcelRequestDTO
-            Optional<UserExcelRequestDTO> userExcelRequestDTO = convertToUserExcelRequestDTO(row, excelMappingHeader);
-
+        for (UserExcelRequestDTO userExcelRequestDTO : userExcelRequestDTOs) {
             // If row is not readable, return error
-            if (!userExcelRequestDTO.isPresent()) {
-                UserExcelFullResponseDTO userExcelFullResponseDTO = new UserExcelFullResponseDTO(String.valueOf(row.getRowNum()), statusError, List.of(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage() ));
+            if (userExcelRequestDTO.getUsername() == null) {
+                UserExcelFullResponseDTO userExcelFullResponseDTO = new UserExcelFullResponseDTO(userExcelRequestDTO.getRowNumber(),
+                                                                                                noNameFound,
+                                                                                                statusError,
+                                                                                                List.of(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage())
+                                                                                                );
                 userExcelFullResponseDTOs.add(userExcelFullResponseDTO);
                 continue;
             }
 
-            // Validate and get response
-            UserExcelFullResponseDTO userExcelFullResponseDTO = validateUserExcelExport(userExcelRequestDTO.get(), users);
+            // Transform request to get response
+            UserExcelFullResponseDTO userExcelFullResponseDTO = transformUserExcelRequestDTO(userExcelRequestDTO);
 
             // Add to list
             userExcelFullResponseDTOs.add(userExcelFullResponseDTO);
 
-            // Update users
-            if (userExcelFullResponseDTO.getStatus() == statusSuccess) {
-                String username = userExcelRequestDTO.get().getUsername();
-                String password = userExcelRequestDTO.get().getPassword();
-                String email = userExcelRequestDTO.get().getEmail();
-                String rolecode = userExcelRequestDTO.get().getRolecode();
-                String roletype = userExcelRequestDTO.get().getRoletype();            
-                if (!users.containsKey(username)) {
-                    User userNew = new User();
-                    userNew.setUsername(username);
-                    userNew.setPassword(passwordEncoder.encode(password));
-                    userNew.setEmail(email);
-
-                    Role role = new Role();
-                    role.setRolecode(rolecode);
-                    role.setRoletype(roletype);
-
-                    role.setUser(userNew);
-                    userNew.getRoles().add(role);
-                
-                    users.put(username, userNew);
-                }
-                else {
-                    User userExist = users.get(username);
-                    Role newRole = new Role();
-                    newRole.setRolecode(rolecode);
-                    newRole.setRoletype(roletype);
-
-                    newRole.setUser(userExist);
-                    userExist.getRoles().add(newRole);
-
-                    users.put(username, userExist);
-                }
+            // Update users if success
+            if (userExcelFullResponseDTO.getStatusUpdate() == statusSuccess) {
+               User user = createUserExcel(userExcelRequestDTO);
+               userRepository.save(user);
             }
-        }
-        userRepository.saveAll(users.values());
+        }        
         return userExcelFullResponseDTOs;
+    }
+
+    private User createUserExcel(UserExcelRequestDTO userExcelRequestDTO) {
+        User user = new User();
+        user.setUsername(userExcelRequestDTO.getUsername());
+        user.setPassword(passwordEncoder.encode(userExcelRequestDTO.getPassword()));
+        user.setEmail(userExcelRequestDTO.getEmail());
+        String[] rolecodes = userExcelRequestDTO.getRolecodes().split(",");
+        String[] roletypes = userExcelRequestDTO.getRoletypes().split(",");
+        for (int i = 0; i < rolecodes.length; i++) {
+            Role role = new Role();
+            role.setRolecode(rolecodes[i]);
+            role.setRoletype(roletypes[i]);
+            role.setUser(user);
+            user.getRoles().add(role);
+        }
+        return user;
+    }
+
+    private List<UserExcelRequestDTO> getUserExcelRequestDTOs(MultipartFile file) {
+        try {
+            Workbook workbook = WorkbookFactory.create(file.getInputStream());
+            Sheet sheet = workbook.getSheetAt(0);
+            List<UserExcelRequestDTO> userExcelRequestDTOs = new ArrayList<>();
+            Map<String, Integer> excelMappingHeader = new HashMap<>();
+            
+            for (Row row : sheet) {
+                // Reading header row
+                if (row.getRowNum() == 0) {
+                    excelMappingHeader = getExcelMappingHeader(row);
+                    continue;
+                }
+                // Skip empty rows
+                if (isRowEmpty(row)) {
+                    continue;
+                }
+                UserExcelRequestDTO userExcelRequestDTO = convertToUserExcelRequestDTO(row, excelMappingHeader);
+                userExcelRequestDTOs.add(userExcelRequestDTO);
+
+                }
+            return userExcelRequestDTOs;
+        } catch (Exception e) {
+            throw new ApiException(ApiErrorType.USER_EXCEL_UNREADABLE_DATA);
+        }
     }
 
     private Sheet getSheet(MultipartFile file) {
@@ -270,27 +283,31 @@ public class UserService {
     }
 
     
-    private Optional<UserExcelRequestDTO> convertToUserExcelRequestDTO(Row row, Map<String, Integer> excelMappingHeader) {
-        try{
-            UserExcelRequestDTO userExcelRequestDTO = new UserExcelRequestDTO();
-            userExcelRequestDTO.setUsername(getCellValue(row, excelMappingHeader.get(usernameHeader)));
-            userExcelRequestDTO.setPassword(getCellValue(row, excelMappingHeader.get(passwordHeader)));
-            userExcelRequestDTO.setEmail(getCellValue(row, excelMappingHeader.get(emailHeader)));
-            userExcelRequestDTO.setRolecode(getCellValue(row, excelMappingHeader.get(rolecodeHeader)));
-            userExcelRequestDTO.setRoletype(getCellValue(row, excelMappingHeader.get(roletypeHeader)));
-            return Optional.of(userExcelRequestDTO);
-        } catch (Exception e) {
-            // throw new ApiException(ApiErrorType.USER_INVALID_INPUT);
-            return Optional.empty();    
-        }      
+    private UserExcelRequestDTO convertToUserExcelRequestDTO(Row row, Map<String, Integer> excelMappingHeader) {
+        UserExcelRequestDTO userExcelRequestDTO = new UserExcelRequestDTO();
+        userExcelRequestDTO.setRowNumber(getCellValuefromExcelMappingHeader(row, excelMappingHeader, rowNumberHeader));     
+        userExcelRequestDTO.setUsername(getCellValuefromExcelMappingHeader(row, excelMappingHeader, usernameHeader));
+        userExcelRequestDTO.setPassword(getCellValuefromExcelMappingHeader(row, excelMappingHeader, passwordHeader));
+        userExcelRequestDTO.setEmail(getCellValuefromExcelMappingHeader(row, excelMappingHeader, emailHeader));
+        userExcelRequestDTO.setRolecodes(getCellValuefromExcelMappingHeader(row, excelMappingHeader, rolecodeHeader));
+        userExcelRequestDTO.setRoletypes(getCellValuefromExcelMappingHeader(row, excelMappingHeader, roletypeHeader));
+        return userExcelRequestDTO;
+    }
+
+    private String getCellValuefromExcelMappingHeader(Row row, Map<String, Integer> excelMappingHeader, String header) {
+        Integer columnIndex = excelMappingHeader.get(header);
+        if (columnIndex == null) {
+            return null;
+        }
+        return getCellValue(row, columnIndex).trim();
     }
 
     private boolean validateUserExcelRequestDTO(UserExcelRequestDTO userExcelRequestDTO, Map<String, User> users) {
         String username = userExcelRequestDTO.getUsername();
         String password = userExcelRequestDTO.getPassword();
         String email = userExcelRequestDTO.getEmail();
-        String rolecode = userExcelRequestDTO.getRolecode();
-        String roletype = userExcelRequestDTO.getRoletype();
+        String rolecodes = userExcelRequestDTO.getRolecodes();
+        String roletypes = userExcelRequestDTO.getRoletypes();
 
         // New user
         if (!users.containsKey(username)) {
@@ -300,8 +317,8 @@ public class UserService {
             user.setEmail(email);
 
             Role role = new Role();
-            role.setRolecode(rolecode);
-            role.setRoletype(roletype);
+            role.setRolecode(rolecodes);
+            role.setRoletype(roletypes);
 
             role.setUser(user);
             user.getRoles().add(role);
@@ -321,7 +338,7 @@ public class UserService {
 
     private boolean validateExistingUserExcelImport(User existingUser, UserExcelRequestDTO userExcelRequestDTO) {
         if (existingUser.getRoles().stream()
-                .anyMatch(roleOld -> roleOld.getRolecode().equals(userExcelRequestDTO.getRolecode()))) {
+                .anyMatch(roleOld -> roleOld.getRolecode().equals(userExcelRequestDTO.getRolecodes()))) {
         // throw new ApiException(ApiErrorType.USER_ROLE_ALREADY_EXISTS, username);
         return false;
         }
@@ -380,26 +397,110 @@ public class UserService {
         
     }
 
-    private UserExcelFullResponseDTO validateUserExcelExport(UserExcelRequestDTO userExcelRequestDTO,  Map<String, User> users) {
+    private UserExcelFullResponseDTO transformUserExcelRequestDTO(UserExcelRequestDTO userExcelRequestDTO) {
+        String rowNumber = userExcelRequestDTO.getRowNumber();
         String username = userExcelRequestDTO.getUsername();
+        String email = userExcelRequestDTO.getEmail();
+        String rolecode = userExcelRequestDTO.getRolecodes();
+        String password = userExcelRequestDTO.getPassword();
+        String roletype = userExcelRequestDTO.getRoletypes();
+
         UserExcelFullResponseDTO userExcelFullResponseDTO = new UserExcelFullResponseDTO();
+        List<String> messages = new ArrayList<>();
 
-        if (!users.containsKey(username)) {     
+        userExcelFullResponseDTO.setRowNumber(userExcelRequestDTO.getRowNumber());
+        userExcelFullResponseDTO.setUsername(username);
+        userExcelFullResponseDTO.setStatusUpdate(statusSuccess);
 
-            userExcelFullResponseDTO = validateNewExcelUser(userExcelRequestDTO);
-            return userExcelFullResponseDTO;
+        if (rowNumber == null) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage(), rowNumberHeader));
         }
-  
-        User existingUser = users.get(username);        
+        if (rowNumber != null && rowNumber.isEmpty()) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_EXCEL_MISSING_DATA.getMessage(), rowNumberHeader));
+        }
+        if (username == null) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage(), usernameHeader));
+        }
+        if (username != null && username.isEmpty()) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_EXCEL_MISSING_DATA.getMessage(), usernameHeader));
+        }
+        if (email == null) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage(), emailHeader));
+        }
+        if (email != null && email.isEmpty()) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_EXCEL_MISSING_DATA.getMessage(), emailHeader));
+        }
+        if (rolecode == null) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage());
+        }
+        if (rolecode != null && rolecode.isEmpty()) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.ROLE_CODE_MISSING.getMessage(), rolecodeHeader));
+        }
+        if (roletype == null) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage());
+        }
+        if (roletype != null && roletype.isEmpty()) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.ROLE_TYPE_MISSING.getMessage(), roletypeHeader));
+        }
+        if (username != null && userRepository.findByUsername(username).isPresent()) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_ALREADY_EXISTS.getMessage(), username));
+        }
+        if (email != null && userRepository.findByEmail(email).isPresent()) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_EMAIL_ALREADY_EXISTS.getMessage(), email));
+        }
+        if (password != null && password.length() < 8) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_INVALID_PASSWORD.getMessage(), password));
+        }
+        if (email != null && !email.matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
+            messages.add(String.format(ApiErrorType.USER_INVALID_EMAIL.getMessage(), email));
+        }
 
-        userExcelFullResponseDTO = validateExistingExcelUser(existingUser, userExcelRequestDTO);
+        if (rolecode != null && roletype != null) {
+
+            // Check roles and types
+            List<String> rolecodes = Arrays.asList(rolecode.split(","));
+            List<String> roletypes = Arrays.asList(roletype.split(","));
+
+            if ((rolecodes.size() != roletypes.size()) || (rolecodes.size() == 0) || (roletypes.size() == 0)) {
+                userExcelFullResponseDTO.setStatusUpdate(statusError);
+                messages.add(ApiErrorType.ROLE_CODE_TYPE_MISMATCH.getMessage());
+            }
+            
+            if (rolecodes.stream().anyMatch(String::isEmpty)) {
+                userExcelFullResponseDTO.setStatusUpdate(statusError);
+                messages.add(ApiErrorType.ROLE_CODE_MISSING.getMessage());
+            }
+            if (roletypes.stream().anyMatch(String::isEmpty)) {
+                userExcelFullResponseDTO.setStatusUpdate(statusError);
+                messages.add(ApiErrorType.ROLE_TYPE_MISSING.getMessage());
+            }
+            if (!(rolecodes.size() == new HashSet<>(rolecodes).size())) {
+                userExcelFullResponseDTO.setStatusUpdate(statusError);
+                messages.add(ApiErrorType.ROLE_CODE_DUPLICATE.getMessage());
+            }
+        }
+        userExcelFullResponseDTO.setMessages(messages);
         return userExcelFullResponseDTO;
     }
 
     private String getCellValue(Row row, int columnIndex) {
-        return dataFormatter.formatCellValue(row.getCell(columnIndex)).trim();
+        Cell cell = row.getCell(columnIndex, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+        return (cell != null) ? dataFormatter.formatCellValue(cell) : "";
     }
-
 
     private boolean isRowEmpty(Row row) {
         if (row == null) return true;
@@ -423,7 +524,7 @@ public class UserService {
         List<String> messages = new ArrayList<>(); //validSuccess;
         messages.add(validSuccess);
         if (existingUser.getRoles().stream()
-                .anyMatch(roleOld -> roleOld.getRolecode().equals(userExcelRequestDTO.getRolecode()))) {
+                .anyMatch(roleOld -> roleOld.getRolecode().equals(userExcelRequestDTO.getRolecodes()))) {
         messages.set(0, validError);     
         messages.add(ApiErrorType.USER_ROLE_ALREADY_EXISTS.getMessage());
 
@@ -442,11 +543,11 @@ public class UserService {
         userExcelFullResponseDTO.setUsername(existingUser.getUsername());
         if (messages.get(0) != validSuccess) {
             userExcelFullResponseDTO.setMessages(messages);
-            userExcelFullResponseDTO.setStatus(statusError);
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
             return userExcelFullResponseDTO;
         }
         userExcelFullResponseDTO.setMessages(List.of(validSuccess));
-        userExcelFullResponseDTO.setStatus(statusSuccess);  
+        userExcelFullResponseDTO.setStatusUpdate(statusSuccess);  
         return userExcelFullResponseDTO;
     }
 
@@ -472,31 +573,31 @@ public class UserService {
             messages.add(String.format(ApiErrorType.USER_INVALID_EMAIL.getMessage(), userExcelRequestDTO.getEmail()));
             messages.set(0, validError);
         }
-        if (userExcelRequestDTO.getRolecode().isEmpty()) {
+        if (userExcelRequestDTO.getRolecodes().isEmpty()) {
             messages.add(String.format(ApiErrorType.USER_ROLE_REQUIRED.getMessage(), userExcelRequestDTO.getUsername()));
             messages.set(0, validError);
         }
-        if (userExcelRequestDTO.getRoletype().isEmpty()) {
+        if (userExcelRequestDTO.getRoletypes().isEmpty()) {
             messages.add(String.format(ApiErrorType.USER_ROLE_TYPE_INVALID.getMessage(), userExcelRequestDTO.getUsername()));
             messages.set(0, validError);
         }   
 
-        if (userExcelRequestDTO.getRolecode() == null) {
+        if (userExcelRequestDTO.getRolecodes() == null) {
             messages.add(String.format(ApiErrorType.USER_ROLE_CODE_INVALID.getMessage(), userExcelRequestDTO.getUsername()));
             messages.set(0, validError);
         }
-        if (userExcelRequestDTO.getRoletype() == null) {
+        if (userExcelRequestDTO.getRoletypes() == null) {
             messages.add(String.format(ApiErrorType.USER_ROLE_TYPE_INVALID.getMessage(), userExcelRequestDTO.getUsername()));
             messages.set(0, validError);
         }
 
-        if (userExcelRequestDTO.getRolecode() != null && userExcelRequestDTO.getRoletype() != null) {
+        if (userExcelRequestDTO.getRolecodes() != null && userExcelRequestDTO.getRoletypes() != null) {
 
-            if (!StringUtils.hasText(userExcelRequestDTO.getRolecode())) {
+            if (!StringUtils.hasText(userExcelRequestDTO.getRolecodes())) {
                 messages.add(String.format(ApiErrorType.USER_ROLE_CODE_INVALID.getMessage(), userExcelRequestDTO.getUsername()));
                 messages.set(0, validError);
             }
-            if (!StringUtils.hasText(userExcelRequestDTO.getRoletype())) {
+            if (!StringUtils.hasText(userExcelRequestDTO.getRoletypes())) {
                 messages.add(String.format(ApiErrorType.USER_ROLE_TYPE_INVALID.getMessage(), userExcelRequestDTO.getUsername()));
                 messages.set(0, validError);
             }
@@ -506,12 +607,12 @@ public class UserService {
         if (messages.get(0) != validSuccess) {            
             userExcelFullResponseDTO.setUsername(userExcelRequestDTO.getUsername());
             userExcelFullResponseDTO.setMessages(messages);
-            userExcelFullResponseDTO.setStatus(statusError);
+            userExcelFullResponseDTO.setStatusUpdate(statusError);
             return userExcelFullResponseDTO;
         }
         userExcelFullResponseDTO.setUsername(userExcelRequestDTO.getUsername());
         userExcelFullResponseDTO.setMessages(List.of(validSuccess));
-        userExcelFullResponseDTO.setStatus(statusSuccess);
+        userExcelFullResponseDTO.setStatusUpdate(statusSuccess);
         return userExcelFullResponseDTO;
     }
     

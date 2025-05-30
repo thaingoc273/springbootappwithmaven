@@ -354,7 +354,7 @@ class UserServiceTest {
 
         // Assert
         assertEquals(1, result.size());
-        assertEquals(validError, result.get(0).getStatus());
+        assertEquals(validError, result.get(0).getStatusUpdate());
         assertEquals(ApiErrorType.USER_ALREADY_EXISTS.getFormattedMessage(testUser.getUsername()), result.get(0).getMessages().get(0));        
     }   
 
@@ -372,7 +372,7 @@ class UserServiceTest {
 
         // Assert
         assertEquals(1, result.size());
-        assertEquals(validError, result.get(0).getStatus());
+        assertEquals(validError, result.get(0).getStatusUpdate());
         assertEquals(ApiErrorType.USER_EMAIL_ALREADY_EXISTS.getFormattedMessage(testUser.getEmail()), result.get(0).getMessages().get(0));
     }
     

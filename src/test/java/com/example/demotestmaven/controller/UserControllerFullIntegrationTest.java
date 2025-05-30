@@ -303,7 +303,7 @@ public class UserControllerFullIntegrationTest {
         String responseBody = result.getResponse().getContentAsString();
         List<UserExcelFullResponseDTO> actualResponse = objectMapper.readValue(responseBody, new TypeReference<List<UserExcelFullResponseDTO>>() {});
         assertEquals(actualResponse.size(), 1);
-        assertEquals(actualResponse.get(0).getStatus(), validSuccess);
+        assertEquals(actualResponse.get(0).getStatusUpdate(), validSuccess);
     }
 
     @Test
@@ -322,7 +322,7 @@ public class UserControllerFullIntegrationTest {
         String responseBody = result.getResponse().getContentAsString();
         List<UserExcelFullResponseDTO> actualResponse = objectMapper.readValue(responseBody, new TypeReference<List<UserExcelFullResponseDTO>>() {});
         assertEquals(actualResponse.size(), 1);
-        assertEquals(actualResponse.get(0).getStatus(), validError);
+        assertEquals(actualResponse.get(0).getStatusUpdate(), validError);
     }
 
     @Test
@@ -341,6 +341,6 @@ public class UserControllerFullIntegrationTest {
         String responseBody = result.getResponse().getContentAsString();
         List<UserExcelFullResponseDTO> actualResponse = objectMapper.readValue(responseBody, new TypeReference<List<UserExcelFullResponseDTO>>() {});
         assertEquals(actualResponse.size(), 1);
-        assertEquals(actualResponse.get(0).getStatus(), validError);
+        assertEquals(actualResponse.get(0).getStatusUpdate(), validError);
     }   
 }

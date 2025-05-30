@@ -10,12 +10,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserExcelFullResponseDTO {
-    String username;
-    String status;
-    List<String> messages;
+    private String rowNumber;
+    private String username;
+    private String statusUpdate;
+    private List<String> messages;
     
     @Override
     public String toString() {
-        return "Username= " + username + ", status= " + status + ", message= " + messages;
+        return "Username= " + username + ", status= " + statusUpdate   + ", message= " + messages;
     }
 }
