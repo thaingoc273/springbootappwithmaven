@@ -20,10 +20,12 @@
      - [x] log4j, sl4j: for debugging and visibility
      - [x] Create end point for upload excel file and save to database
      - [x] Create full integration test for upload excel file
-- Need to be done
      - [x] Build Jar file using Maven plugin (in deployment)
      - [x] Read file
-     - [ ] Mock test and integration test
+     - [x] Mock test and integration test
+- Need to be done
+     - [ ] Multithread
+     - [ ] Mockito argumentcaptor 
      - [ ] Solid priciple in software engineering     
      - [ ] Create end point that calls from another API
      - [ ] Create Cron job

@@ -174,16 +174,6 @@ class UserControllerTest {
     }
 
 
-
-
-
-
-    @Test
-    void getAllUsers_WhenNormal_ShouldReturnListOfUsers_Full_Integration_Test(){
-        
-
-    }
-
     private MultipartFile getMockMultipartFile(String fileName) {
         try {
             ClassPathResource resource = new ClassPathResource(fileName);

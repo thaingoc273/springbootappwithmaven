@@ -34,6 +34,8 @@ public class GlobalConstants {
     public static final String ROLECODE_HEADER = "rolecode";
     public static final String ROLETYPE_HEADER = "roletype";
     public static final String PASSWORD_HEADER = "password";
+
+    public static final String MISSING_ROW_NUMBER = "missing";
     
     
 

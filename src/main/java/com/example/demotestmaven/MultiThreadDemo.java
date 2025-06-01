@@ -23,6 +23,7 @@ public class MultiThreadDemo {
 }
 
 // A class that implements Runnable to print numbers
+
 class NumberPrinter implements Runnable {
     private String threadName;
 
