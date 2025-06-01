@@ -23,9 +23,9 @@
      - [x] Build Jar file using Maven plugin (in deployment)
      - [x] Read file
      - [x] Mock test and integration test
+     - [x] Multithread
+     - [x] Mockito argumentcaptor 
 - Need to be done
-     - [ ] Multithread
-     - [ ] Mockito argumentcaptor 
      - [ ] Solid priciple in software engineering     
      - [ ] Create end point that calls from another API
      - [ ] Create Cron job
