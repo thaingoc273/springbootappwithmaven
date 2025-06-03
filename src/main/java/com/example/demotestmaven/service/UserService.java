@@ -7,8 +7,11 @@ import com.example.demotestmaven.constants.GlobalConstants;
 import com.example.demotestmaven.dto.RoleDTO;
 import com.example.demotestmaven.dto.UserExcelResponseDTO;
 import com.example.demotestmaven.dto.UserExcelValidateDTO;
+import com.example.demotestmaven.dto.CityPopulationResponseDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.repository.UserRepository;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.example.demotestmaven.repository.RoleRepository;
 import com.example.demotestmaven.exception.ApiErrorType;
 import com.example.demotestmaven.exception.ApiException;
@@ -30,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.demotestmaven.entity.Role;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -58,6 +62,9 @@ public class UserService {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    // @Autowired
+    // private RestTemplate restTemplate;
 
     @Autowired
     private AsyncUserService asyncUserService;
@@ -228,6 +235,7 @@ public class UserService {
 
         return userExcelFullResponseDTOs;
     }
+    
 
     private User createUserExcel(UserExcelRequestDTO userExcelRequestDTO) {
         User user = new User();

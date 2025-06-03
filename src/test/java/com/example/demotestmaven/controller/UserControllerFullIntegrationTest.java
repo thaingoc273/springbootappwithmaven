@@ -39,6 +39,7 @@ import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.dto.RoleDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.exception.ApiErrorType;
+import com.example.demotestmaven.service.AsyncUserService;
 import com.example.demotestmaven.testconstants.TestConstants;
 import com.example.demotestmaven.entity.Role;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -57,6 +58,9 @@ public class UserControllerFullIntegrationTest {
 
     @Autowired
     private EntityManager entityManager;
+
+    @Autowired
+    private AsyncUserService asyncUserService;
 
     @Autowired
     private ObjectMapper objectMapper;

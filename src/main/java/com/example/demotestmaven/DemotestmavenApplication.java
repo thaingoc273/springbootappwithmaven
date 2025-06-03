@@ -5,10 +5,18 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @SpringBootApplication
 @EnableAsync
+@EnableScheduling
 public class DemotestmavenApplication {
+
+	@Scheduled(cron = "0 0/5 * * * ?")
+	public void scheduleTask() {
+		System.out.println("Cron job is running");
+	}
 
 	public static void main(String[] args) {
 		SpringApplication.run(DemotestmavenApplication.class, args);

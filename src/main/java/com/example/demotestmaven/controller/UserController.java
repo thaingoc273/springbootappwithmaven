@@ -3,10 +3,12 @@ package com.example.demotestmaven.controller;
 import com.example.demotestmaven.dto.UserDTO;
 import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.service.UserService;
+import com.example.demotestmaven.service.external.CityPopulationService;
 import com.example.demotestmaven.exception.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.util.StringUtils;
 import org.springframework.http.HttpStatus;
@@ -23,6 +25,13 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private CityPopulationService cityPopulationService;
+
+
+    @Autowired
+    private RestTemplate restTemplate;
 
     @GetMapping
     public ResponseEntity<List<UserDTO>> getAllUsers(@RequestHeader("X-Current-User") String currentUsername) {
@@ -62,4 +71,10 @@ public class UserController {
     public ResponseEntity<List<UserExcelFullResponseDTO>> importUsersFromExcel(@RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(userService.importUsersFromExcel(file));
     }
+
+    @GetMapping("/population/cities")
+    public ResponseEntity<?> callExternalAPI_getPopulationByCities() {
+        return ResponseEntity.ok(cityPopulationService.callExternalAPI_getPopulationByCities());     
+    }
+
 } 

@@ -15,6 +15,8 @@ import jakarta.transaction.Transactional;
 import com.example.demotestmaven.repository.RoleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -63,8 +65,14 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private AsyncUserService asyncUserService;
+
     @InjectMocks
     private UserService userService;
+
+    @Captor
+    private ArgumentCaptor<User> userCaptor;
 
     private User testUser;
     private UserDTO testUserDTO;
@@ -311,10 +319,10 @@ class UserServiceTest {
 
     @Test
     void importUsersFromExcel_WhenNormal_ShouldReturnSuccess() throws Exception {
-
         // Arrange
         MultipartFile file = getMockMultipartFile(TestConstants.USER_EXCEL_IMPORT_NORMAL_FILE);
-        // when(passwordEncoder.encode(anyString())).thenReturn("encodedPassword");
+        // doNothing().when(asyncUserService).saveUsers(any(User.class));
+        
         // Act
         List<UserExcelFullResponseDTO> result = userService.importUsersFromExcel(file);
 
@@ -322,7 +330,8 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(successStatus, result.get(0).getStatusUpdate());
-     }
+        verify(asyncUserService, times(1)).saveUsers(any(User.class));
+    }
 
     @Test
     void importUsersFromExcel_WhenEmptyFile_ShouldThrowApiException() throws Exception {
@@ -505,6 +514,22 @@ class UserServiceTest {
         assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
         assertEquals(ApiErrorType.USER_EXCEL_UNREADABLE_DATA.getMessage(), exception.getMessage());
 
+    }
+
+    // Check save user success using @Captor and argumentcaptor
+    @Test
+    void importUserExcel_WhenSaveUser_ShouldCheckSuccess() {
+        // Arrange
+
+        userRepository.save(testUser);
+
+        verify(userRepository, times(1)).save(userCaptor.capture());
+        User user = userCaptor.getValue();
+        assertEquals(testUser.getUsername(), user.getUsername());
+        assertEquals(testUser.getEmail(), user.getEmail());
+        assertEquals(testUser.getPassword(), user.getPassword());
+        assertEquals(testUser.getCreatedAt(), user.getCreatedAt());
+        assertEquals(testUser.getUpdatedAt(), user.getUpdatedAt());
     }
 
 
