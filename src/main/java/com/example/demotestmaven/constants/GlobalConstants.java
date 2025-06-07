@@ -5,6 +5,8 @@ public class GlobalConstants {
     public static final String successStatus = "success";
     public static final String errorStatus = "error";
 
+
+    public static final String USER_SUCCESS_MESSAGE = "User created successfully";
     public static final String UNREADABLE_DATA = "Unreadable data";
     public static final String INVALID_DATE = "Invalid date";
     public static final String INVALID_ROLECODE = "Invalid rolecode";

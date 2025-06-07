@@ -27,7 +27,8 @@
      - [x] Concurrence in database
 - Development processes
      - [x] Build Jar file using Maven plugin (in deployment)
+     - [x] Solid priciple in software engineering     
+     - [x] Create end point that calls from another API
+     - [x] Create Cron job
 - Need to be done
-     - [ ] Solid priciple in software engineering     
-     - [ ] Create end point that calls from another API
-     - [ ] Create Cron job
+     - [ ] 

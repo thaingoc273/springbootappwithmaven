@@ -17,7 +17,7 @@ public class WebClientConfig {
             .build();
 
         return WebClient.builder()
-            .baseUrl("https://countriesnow.space/api/v0.1")
+            // .baseUrl("https://countriesnow.space/api/v0.1")
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .exchangeStrategies(exchangeStrategies);
     }

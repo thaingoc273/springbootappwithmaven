@@ -2,8 +2,15 @@ package com.example.demotestmaven.controller;
 
 import com.example.demotestmaven.dto.UserDTO;
 import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
+import com.example.demotestmaven.dto.UserRequestDTO;
+import com.example.demotestmaven.dto.UserResponseDTO;
 import com.example.demotestmaven.service.UserService;
 import com.example.demotestmaven.service.external.CityPopulationService;
+import com.example.demotestmaven.constants.GlobalConstants;
+import lombok.extern.slf4j.Slf4j;
+
+import reactor.core.publisher.Flux;
+
 import com.example.demotestmaven.exception.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +27,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
+@Slf4j
 public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
@@ -35,13 +43,13 @@ public class UserController {
 
     @GetMapping
     public ResponseEntity<List<UserDTO>> getAllUsers(@RequestHeader("X-Current-User") String currentUsername) {
-        logger.info("getAllUsers called with currentUsername: {}", currentUsername);
+        log.info("getAllUsers called with currentUsername: {}", currentUsername);
         return ResponseEntity.ok(userService.getAllUsers(currentUsername));
     }
 
     @GetMapping("/{username}")
     public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
-        logger.info("Get user by username: {}", username);
+        log.info("Get user by username: {}", username);
         return ResponseEntity.ok(userService.getUserByUsername(username));
     }
 
@@ -67,6 +75,19 @@ public class UserController {
         return ResponseEntity.ok(userService.createUser(currentUsername, userDTO));
     }
 
+    @PostMapping("/batch")
+    public ResponseEntity<List<UserResponseDTO>> createUsers(
+            @RequestHeader("X-Current-User") String currentUsername,
+            @RequestBody List<UserRequestDTO> userRequestDTOs) {
+        log.info("Creating batch of {} users", userRequestDTOs.size());
+        return ResponseEntity.ok(userService.createUsers(currentUsername, userRequestDTOs));
+    }
+    @PostMapping("/batch_async")
+    public Flux<UserResponseDTO> createUsersBatchAsync(
+            @RequestHeader("X-Current-User") String currentUsername,
+            @RequestBody List<UserRequestDTO> userRequestDTOs) {       
+        return userService.createUsersBatchAsync(currentUsername, userRequestDTOs);
+    }
     @PostMapping(value ="/import", consumes = "multipart/form-data")
     public ResponseEntity<List<UserExcelFullResponseDTO>> importUsersFromExcel(@RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(userService.importUsersFromExcel(file));

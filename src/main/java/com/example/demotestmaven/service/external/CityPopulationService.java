@@ -30,7 +30,7 @@ public class CityPopulationService {
         String url = "https://countriesnow.space/api/v0.1/countries/population/cities";
         RestTemplate restTemplate = new RestTemplate();
         String response = restTemplate.getForObject(url, String.class);
-        logger.info("response: {}", response);
+        // logger.info("response: {}", response);
         Gson gson = new Gson();
         return gson.fromJson(response, CityPopulationResponseDTO.class);
     }
@@ -58,11 +58,11 @@ public class CityPopulationService {
             .flatMap(response -> {
                 try {
                     ObjectMapper objectMapper = new ObjectMapper();
-                    JsonNode rootNode = objectMapper.readTree(response);
-                    logger.info("Response structure: {}", rootNode.toPrettyString());
+                    // JsonNode rootNode = objectMapper.readTree(response);
+                    // logger.info("Response structure: {}", rootNode.toPrettyString());
                     
                     CityPopulationResponseDTO dto = objectMapper.readValue(response, CityPopulationResponseDTO.class);
-                    logger.info("Parsed DTO: {}", dto);
+                    // logger.info("Parsed DTO: {}", dto);
                     
                     if (dto.isError()) {
                         logger.error("API returned error: {}", dto.getMsg());

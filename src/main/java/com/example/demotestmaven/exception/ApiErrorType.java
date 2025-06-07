@@ -12,6 +12,9 @@ public enum ApiErrorType {
     USER_NOT_FOUND("User not found with username: %s", HttpStatus.NOT_FOUND),
     USER_ALREADY_EXISTS("User already exists: %s", HttpStatus.BAD_REQUEST),
     USER_INVALID_INPUT("Invalid input", HttpStatus.BAD_REQUEST),
+    USER_MISSING_USERNAME("Username is missing", HttpStatus.BAD_REQUEST),
+    USER_MISSING_PASSWORD("Password is missing", HttpStatus.BAD_REQUEST),
+    USER_MISSING_EMAIL("Email is missing", HttpStatus.BAD_REQUEST),
     USER_INVALID_USERNAME("Invalid username %s", HttpStatus.BAD_REQUEST),
     USER_INVALID_PASSWORD("Invalid password %s", HttpStatus.BAD_REQUEST),
     USER_INVALID_EMAIL("Invalid email %s", HttpStatus.BAD_REQUEST),
@@ -30,7 +33,13 @@ public enum ApiErrorType {
     USER_EXCEL_MISSING_DATA("Missing data for field %s", HttpStatus.BAD_REQUEST),
     USER_EXCEL_MISSING_EMAIL_DATA("Missing email data", HttpStatus.BAD_REQUEST),
 
-    
+    //Async user error
+    ASYNC_USER_NOT_FOUND("Async user not found with username: %s", HttpStatus.NOT_FOUND),
+    ASYNC_USER_ALREADY_EXISTS("Async user already exists: %s", HttpStatus.BAD_REQUEST),
+    ASYNC_USER_INVALID_INPUT("Async invalid input", HttpStatus.BAD_REQUEST),
+    ASYNC_USER_MISSING_USERNAME("Async username is missing", HttpStatus.BAD_REQUEST),
+    ASYNC_USER_MISSING_PASSWORD("Async password is missing", HttpStatus.BAD_REQUEST),
+    ASYNC_USER_MISSING_EMAIL("Async email is missing", HttpStatus.BAD_REQUEST),
 
     //Role error
     ROLE_NOT_FOUND("Role not found with name: %s", HttpStatus.NOT_FOUND),
@@ -43,6 +52,7 @@ public enum ApiErrorType {
     ROLE_TYPE_MISSING("Role type is missing", HttpStatus.BAD_REQUEST),
     ROLE_TYPE_EMPTY_SUBSTRING("One of the role types in the list is empty", HttpStatus.BAD_REQUEST),
     ROLE_CODE_DUPLICATE("Role code is duplicate", HttpStatus.BAD_REQUEST),
+
 
     // Excel error
     USER_EXCEL_UNREADABLE_DATA("Unreadable data", HttpStatus.BAD_REQUEST),

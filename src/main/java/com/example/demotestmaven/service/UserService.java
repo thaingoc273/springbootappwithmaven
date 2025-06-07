@@ -7,11 +7,16 @@ import com.example.demotestmaven.constants.GlobalConstants;
 import com.example.demotestmaven.dto.RoleDTO;
 import com.example.demotestmaven.dto.UserExcelResponseDTO;
 import com.example.demotestmaven.dto.UserExcelValidateDTO;
+import com.example.demotestmaven.dto.UserRequestDTO;
+import com.example.demotestmaven.dto.UserResponseDTO;
 import com.example.demotestmaven.dto.CityPopulationResponseDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.repository.UserRepository;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+
+import reactor.core.publisher.Flux;
+
 import com.example.demotestmaven.repository.RoleRepository;
 import com.example.demotestmaven.exception.ApiErrorType;
 import com.example.demotestmaven.exception.ApiException;
@@ -50,6 +55,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class UserService {
@@ -70,6 +78,7 @@ public class UserService {
     private AsyncUserService asyncUserService;
 
     private final DataFormatter dataFormatter = new DataFormatter();
+    private final ExecutorService executorService = Executors.newFixedThreadPool(5);
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
 
@@ -218,7 +227,10 @@ public class UserService {
             // Update users if success
             if (userExcelFullResponseDTO.getStatusUpdate() == STATUS_SUCCESS) {
                User user = createUserExcel(userExcelRequestDTO);
+               
                asyncUserService.saveUsers(user); // Save user in a new thread
+
+
                 // userRepository.save(user);
                 // logger.info("Thread: {}", Thread.currentThread().getName());
                 // logger.info("User saved: {}", user.getUsername());
@@ -236,6 +248,99 @@ public class UserService {
         return userExcelFullResponseDTOs;
     }
     
+    @Transactional
+    public List<UserResponseDTO> createUsers(String currentUsername, List<UserRequestDTO> userRequestDTOs) {
+        if (!isCurrentUserAdmin(currentUsername)) {
+            // throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
+            UserResponseDTO userResponseDTO = new UserResponseDTO();
+            userResponseDTO.setUsername(null);
+            userResponseDTO.setMessages(ApiErrorType.FORBIDDEN_OPERATION.getMessage());
+            return Arrays.asList(userResponseDTO);
+        }
+        List<User> users = userRequestDTOs.stream()
+                .map(this::createUser)                              
+                .collect(Collectors.toList());
+
+        logger.info("users: {}", users);
+        List<UserResponseDTO> userResponseDTOs = new ArrayList<>();
+
+        users.forEach(user -> {
+            UserResponseDTO userResponseDTO = createUserResponseDTO(user);
+            if (userResponseDTO.getMessages().equals(GlobalConstants.USER_SUCCESS_MESSAGE)) {
+                userRepository.save(user);
+            }
+            userResponseDTOs.add(userResponseDTO);
+        });
+        logger.info("userResponseDTOs: {}", userResponseDTOs);
+        return userResponseDTOs.stream()
+                .filter(userResponseDTO -> (userResponseDTO.getMessages() != GlobalConstants.USER_SUCCESS_MESSAGE))                            
+                .collect(Collectors.toList());      
+    }
+
+    @Transactional
+    public Flux<UserResponseDTO> createUsersBatchAsync(String currentUsername, List<UserRequestDTO> userRequestDTOs) {
+        if (!isCurrentUserAdmin(currentUsername)) {
+            throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
+        }
+
+        return Flux.fromIterable(userRequestDTOs)
+            .map(userRequestDTO -> {
+                User user = createUser(userRequestDTO);
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        // logger.info("Thread {} starting to save user: {}", Thread.currentThread().getName(), user.getUsername());
+                        // asyncUserService.saveUsers(user); do not need to use this method because it is not async
+                        userRepository.save(user);
+                        logger.info("Thread {} completed saving user: {}", Thread.currentThread().getName(), user.getUsername());
+                    } catch (Exception e) {
+                        logger.error("Thread {} failed to save user: {} with error: {}", 
+                            Thread.currentThread().getName(), user.getUsername(), e.getMessage());
+                        throw new ApiException(ApiErrorType.ASYNC_USER_NOT_FOUND, e.getMessage());
+                    }
+                }, executorService); // save user in a new thread
+                return createUserResponseDTO(user);
+            });
+            // .collectList()
+            // .flatMapMany(Flux::just);
+    }
+
+    private User createUser(UserRequestDTO userRequestDTO) {
+        User user = new User();
+        user.setUsername(userRequestDTO.getUsername());
+        user.setPassword(passwordEncoder.encode(userRequestDTO.getPassword()));
+        user.setEmail(userRequestDTO.getEmail());
+        return user;
+    }    
+
+
+
+    private UserResponseDTO createUserResponseDTO(User user) {
+        UserResponseDTO userResponseDTO = new UserResponseDTO();
+        if ((user.getUsername() == null) || (user.getUsername().isEmpty())) {
+            userResponseDTO.setUsername(null);
+            userResponseDTO.setMessages(ApiErrorType.USER_MISSING_USERNAME.getMessage());
+        }else if ((user.getEmail() == null) || (user.getEmail().isEmpty())) {
+            userResponseDTO.setUsername(user.getUsername());
+            userResponseDTO.setMessages(ApiErrorType.USER_MISSING_EMAIL.getMessage());
+        }else if (!user.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            userResponseDTO.setUsername(user.getUsername());
+            userResponseDTO.setMessages(ApiErrorType.USER_INVALID_EMAIL.getMessage());
+        }else if (user.getPassword().length() < 8) {
+            userResponseDTO.setUsername(user.getUsername());
+            userResponseDTO.setMessages(ApiErrorType.USER_INVALID_PASSWORD.getMessage());        
+        }else if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+            userResponseDTO.setUsername(user.getUsername());
+            userResponseDTO.setMessages(String.format(ApiErrorType.USER_ALREADY_EXISTS.getMessage(), user.getUsername()));
+        }else if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            userResponseDTO.setUsername(user.getUsername());
+            userResponseDTO.setMessages(String.format(ApiErrorType.USER_EMAIL_ALREADY_EXISTS.getMessage(), user.getEmail()));
+        }else {
+            userResponseDTO.setUsername(user.getUsername());
+            userResponseDTO.setMessages(GlobalConstants.USER_SUCCESS_MESSAGE);
+        }
+        return userResponseDTO;
+    }
+
 
     private User createUserExcel(UserExcelRequestDTO userExcelRequestDTO) {
         User user = new User();

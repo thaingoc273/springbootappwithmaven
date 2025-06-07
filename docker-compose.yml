@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  # app:
+  #   build: .
+  #   container_name: demotestmaven-app
+  #   ports:
+  #     - "8082:8082"
+  #   environment:
+  #     - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/demotestmaven?useSSL=false&allowPublicKeyRetrieval=true
+  #     - SPRING_DATASOURCE_USERNAME=demouser
+  #     - SPRING_DATASOURCE_PASSWORD=demopassword
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #   networks:
+  #     - demotestmaven-network
+
   mysql:
     image: mysql:8.0.42
     container_name: demotestmaven-mysql
@@ -16,11 +31,17 @@ services:
     command: --default-authentication-plugin=mysql_native_password
     networks:
       - demotestmaven-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "demouser", "-pdemopassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   mysql-data:
     driver: local
 
 networks:
-  demotestmaven-network:k
+  demotestmaven-network:
     driver: bridge 

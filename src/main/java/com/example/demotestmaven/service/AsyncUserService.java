@@ -19,9 +19,8 @@ public class AsyncUserService {
 
     @Async("threadPoolTaskExecutor")
     public void saveUsers(User user) {
-        logger.info("Thread: {}", Thread.currentThread().getName());
+        // logger.info("Thread: {} and User: {} starting to save", Thread.currentThread().getName(), user.getUsername());
         userRepository.save(user);
-        logger.info("User saved: {}", user.getUsername());
+        logger.info("Thread: {} and User: {} saved", Thread.currentThread().getName(), user.getUsername());
     }
-
 }
