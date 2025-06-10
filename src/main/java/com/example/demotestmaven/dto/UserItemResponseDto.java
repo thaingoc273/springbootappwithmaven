@@ -7,5 +7,5 @@ public class UserItemResponseDto {
     private String username;
     private String status;
     private String message;
-    private String errorMessage;
+    // private String errorMessage;
 }

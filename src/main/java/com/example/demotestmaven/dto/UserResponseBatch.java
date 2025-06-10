@@ -8,8 +8,6 @@ import java.util.List;
 public class UserResponseBatch {
     private int successCount;
     private int failureCount;
-    private int successRate;
-    private List<UserItemResponseDto> userItemResponseDtos;
+    private float successRate;
+    private List<UserItemResponseDto> results;
 }
-
-

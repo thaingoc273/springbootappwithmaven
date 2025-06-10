@@ -8,7 +8,9 @@ import com.example.demotestmaven.dto.RoleDTO;
 import com.example.demotestmaven.dto.UserExcelResponseDTO;
 import com.example.demotestmaven.dto.UserExcelValidateDTO;
 import com.example.demotestmaven.dto.UserRequestDTO;
+import com.example.demotestmaven.dto.UserResponseBatch;
 import com.example.demotestmaven.dto.UserResponseDTO;
+import com.example.demotestmaven.dto.UserItemResponseDto;
 import com.example.demotestmaven.dto.CityPopulationResponseDTO;
 import com.example.demotestmaven.entity.User;
 import com.example.demotestmaven.repository.UserRepository;
@@ -16,6 +18,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.example.demotestmaven.repository.RoleRepository;
 import com.example.demotestmaven.exception.ApiErrorType;
@@ -278,7 +281,7 @@ public class UserService {
     }
 
     @Transactional
-    public Flux<UserResponseDTO> createUsersBatchAsync(String currentUsername, List<UserRequestDTO> userRequestDTOs) {
+    public Mono<UserResponseBatch> createUsersBatchAsync(String currentUsername, List<UserRequestDTO> userRequestDTOs) {
         if (!isCurrentUserAdmin(currentUsername)) {
             throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
         }
@@ -286,22 +289,65 @@ public class UserService {
         return Flux.fromIterable(userRequestDTOs)
             .map(userRequestDTO -> {
                 User user = createUser(userRequestDTO);
+                UserItemResponseDto userItemResponseDto = createUserItemResponseDto(user);                
                 CompletableFuture.runAsync(() -> {
                     try {
-                        // logger.info("Thread {} starting to save user: {}", Thread.currentThread().getName(), user.getUsername());
-                        // asyncUserService.saveUsers(user); do not need to use this method because it is not async
-                        userRepository.save(user);
-                        logger.info("Thread {} completed saving user: {}", Thread.currentThread().getName(), user.getUsername());
+                        if (userItemResponseDto.getStatus().equals(GlobalConstants.SUCCESS_STATUS)) {
+                            userRepository.save(user);
+                            logger.info("Thread {} completed saving user: {}", Thread.currentThread().getName(), user.getUsername());
+                        }                        
                     } catch (Exception e) {
                         logger.error("Thread {} failed to save user: {} with error: {}", 
                             Thread.currentThread().getName(), user.getUsername(), e.getMessage());
-                        throw new ApiException(ApiErrorType.ASYNC_USER_NOT_FOUND, e.getMessage());
+                        // throw new ApiException(ApiErrorType.ASYNC_USER_NOT_FOUND, e.getMessage());
+                        userItemResponseDto.setMessage(e.getMessage());
+                        userItemResponseDto.setStatus(GlobalConstants.ERROR_STATUS);
                     }
-                }, executorService); // save user in a new thread
-                return createUserResponseDTO(user);
+                }, executorService);
+                return userItemResponseDto;
+            })
+            .collectList()
+            .map(responseDTOs -> {
+                UserResponseBatch batchResponse = new UserResponseBatch();
+                batchResponse.setSuccessCount((int) responseDTOs.stream().filter(userItemResponseDto -> userItemResponseDto.getStatus().equals(GlobalConstants.SUCCESS_STATUS)).count());
+                batchResponse.setFailureCount((int) responseDTOs.stream().filter(userItemResponseDto -> userItemResponseDto.getStatus().equals(GlobalConstants.ERROR_STATUS)).count());
+                batchResponse.setSuccessRate(((float) batchResponse.getSuccessCount()) / responseDTOs.size() * 100);                
+                batchResponse.setResults(responseDTOs);
+                return batchResponse;
             });
-            // .collectList()
-            // .flatMapMany(Flux::just);
+    }
+
+    @Transactional
+    public List<String> getPermissionByUsername(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ApiException(ApiErrorType.USER_NOT_FOUND, username));
+        return user.getRoles().stream().map(Role::getRolecode).collect(Collectors.toList());
+    }
+
+    private UserItemResponseDto createUserItemResponseDto(User user) {
+        UserItemResponseDto userItemResponseDto = new UserItemResponseDto();
+        userItemResponseDto.setUsername(user.getUsername());
+        if ((user.getUsername() == null) || (user.getUsername().isEmpty())) {
+            userItemResponseDto.setMessage(ApiErrorType.USER_MISSING_USERNAME.getMessage());
+        }else if ((user.getEmail() == null) || (user.getEmail().isEmpty())) {
+            userItemResponseDto.setMessage(ApiErrorType.USER_MISSING_EMAIL.getMessage());
+        }else if ((user.getPassword() == null) || (user.getPassword().isEmpty())) {
+            userItemResponseDto.setMessage(ApiErrorType.USER_MISSING_PASSWORD.getMessage());
+        }else if (userRepository.findByUsername(user.getUsername()).isPresent()) {
+            userItemResponseDto.setMessage(String.format(ApiErrorType.USER_ALREADY_EXISTS.getMessage(), user.getUsername()));
+        }else if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            userItemResponseDto.setMessage(String.format(ApiErrorType.USER_EMAIL_ALREADY_EXISTS.getMessage(), user.getEmail()));
+        }else if (user.getPassword().length() < 8) {
+            userItemResponseDto.setMessage(ApiErrorType.USER_INVALID_PASSWORD.getMessage());
+        }else if (!user.getEmail().matches("^[A-Za-z0-9+_.-]+@(.+)$")) {
+            userItemResponseDto.setMessage(ApiErrorType.USER_INVALID_EMAIL.getMessage());
+        }else if (user.getUsername().contains("ngoc")) {
+            userItemResponseDto.setMessage("ngoc is not allowed to create user");            
+        }else {
+            userItemResponseDto.setMessage(GlobalConstants.USER_SUCCESS_MESSAGE);
+        }
+        userItemResponseDto.setStatus(userItemResponseDto.getMessage().equals(GlobalConstants.USER_SUCCESS_MESSAGE) ? GlobalConstants.SUCCESS_STATUS : GlobalConstants.ERROR_STATUS); 
+        return userItemResponseDto;
     }
 
     private User createUser(UserRequestDTO userRequestDTO) {

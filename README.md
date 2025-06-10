@@ -31,4 +31,7 @@
      - [x] Create end point that calls from another API
      - [x] Create Cron job
 - Need to be done
-     - [ ] 
+     - [ ] Testing for Webflux using WebTestClient
+     - [ ] Normalize ResponseDto (divide success and error messages)
+     - [ ] Sending Email using Gmail server
+     - [ ] Spring bean singleton, global variable

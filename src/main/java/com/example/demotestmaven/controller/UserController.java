@@ -4,12 +4,14 @@ import com.example.demotestmaven.dto.UserDTO;
 import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.dto.UserRequestDTO;
 import com.example.demotestmaven.dto.UserResponseDTO;
+import com.example.demotestmaven.dto.UserResponseBatch;
 import com.example.demotestmaven.service.UserService;
 import com.example.demotestmaven.service.external.CityPopulationService;
 import com.example.demotestmaven.constants.GlobalConstants;
 import lombok.extern.slf4j.Slf4j;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.example.demotestmaven.exception.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,10 +85,18 @@ public class UserController {
         return ResponseEntity.ok(userService.createUsers(currentUsername, userRequestDTOs));
     }
     @PostMapping("/batch_async")
-    public Flux<UserResponseDTO> createUsersBatchAsync(
+    public Mono<ResponseEntity<UserResponseBatch>> createUsersBatchAsync(
             @RequestHeader("X-Current-User") String currentUsername,
             @RequestBody List<UserRequestDTO> userRequestDTOs) {       
-        return userService.createUsersBatchAsync(currentUsername, userRequestDTOs);
+        return userService.createUsersBatchAsync(currentUsername, userRequestDTOs)
+        .map(result -> {
+            if (result.getSuccessRate() >= 80) {
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+            }
+        }
+        );
     }
     @PostMapping(value ="/import", consumes = "multipart/form-data")
     public ResponseEntity<List<UserExcelFullResponseDTO>> importUsersFromExcel(@RequestParam("file") MultipartFile file) {
@@ -96,6 +106,11 @@ public class UserController {
     @GetMapping("/population/cities")
     public ResponseEntity<?> callExternalAPI_getPopulationByCities() {
         return ResponseEntity.ok(cityPopulationService.callExternalAPI_getPopulationByCities());     
+    }
+
+    @GetMapping("/permission/{username}")
+    public ResponseEntity<?> getPermissionByUsername(@PathVariable String username) {
+        return ResponseEntity.ok(userService.getPermissionByUsername(username));
     }
 
 } 
