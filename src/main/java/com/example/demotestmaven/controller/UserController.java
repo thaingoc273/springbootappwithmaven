@@ -5,6 +5,7 @@ import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.dto.UserRequestDTO;
 import com.example.demotestmaven.dto.UserResponseDTO;
 import com.example.demotestmaven.dto.UserResponseBatch;
+import com.example.demotestmaven.dto.UserResponseBatchSuccessErrorDto;
 import com.example.demotestmaven.service.UserService;
 import com.example.demotestmaven.service.external.CityPopulationService;
 import com.example.demotestmaven.constants.GlobalConstants;
@@ -111,6 +112,18 @@ public class UserController {
     @GetMapping("/permission/{username}")
     public ResponseEntity<?> getPermissionByUsername(@PathVariable String username) {
         return ResponseEntity.ok(userService.getPermissionByUsername(username));
+    }
+
+    @PostMapping("/batch_success_error")
+    public ResponseEntity<UserResponseBatchSuccessErrorDto> createUsersBatchSuccessError(
+            @RequestHeader("X-Current-User") String currentUsername,
+            @RequestBody List<UserRequestDTO> userRequestDTOs) {
+        UserResponseBatchSuccessErrorDto result = userService.createUsersBatchSuccessError(currentUsername, userRequestDTOs);
+        if (result.getSuccessRate() >= 80) {
+            return ResponseEntity.ok(result);
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+        }
     }
 
 } 

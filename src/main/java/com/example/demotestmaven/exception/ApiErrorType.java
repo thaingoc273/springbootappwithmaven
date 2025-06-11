@@ -65,6 +65,14 @@ public enum ApiErrorType {
 
     //Internal server error
     INTERNAL_SERVER_ERROR("An unexpected error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+
+    //Database errors
+    DATABASE_CONNECTION_ERROR("Database connection error occurred", HttpStatus.SERVICE_UNAVAILABLE),
+    DATABASE_TIMEOUT_ERROR("Database operation timed out", HttpStatus.REQUEST_TIMEOUT),
+    DATABASE_CONSTRAINT_VIOLATION("Database constraint violation occurred", HttpStatus.CONFLICT),
+    DATABASE_SYSTEM_ERROR("Database system error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+    DATABASE_ERROR("An unexpected database error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
+    TRANSACTION_ERROR("Transaction error occurred", HttpStatus.INTERNAL_SERVER_ERROR),
     ;
 
 

@@ -5,10 +5,13 @@ import com.example.demotestmaven.dto.UserExcelFullResponseDTO;
 import com.example.demotestmaven.dto.UserExcelRequestDTO;
 import com.example.demotestmaven.constants.GlobalConstants;
 import com.example.demotestmaven.dto.RoleDTO;
+import com.example.demotestmaven.dto.UserBatchErrorDto;
+import com.example.demotestmaven.dto.UserBatchSuccessfulDto;
 import com.example.demotestmaven.dto.UserExcelResponseDTO;
 import com.example.demotestmaven.dto.UserExcelValidateDTO;
 import com.example.demotestmaven.dto.UserRequestDTO;
 import com.example.demotestmaven.dto.UserResponseBatch;
+import com.example.demotestmaven.dto.UserResponseBatchSuccessErrorDto;
 import com.example.demotestmaven.dto.UserResponseDTO;
 import com.example.demotestmaven.dto.UserItemResponseDto;
 import com.example.demotestmaven.dto.CityPopulationResponseDTO;
@@ -35,6 +38,7 @@ import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -61,6 +65,16 @@ import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.dao.RecoverableDataAccessException;
+import org.springframework.dao.NonTransientDataAccessException;
+import org.springframework.transaction.TransactionSystemException;
+import org.springframework.orm.jpa.JpaSystemException;
+import org.hibernate.exception.JDBCConnectionException;
+import org.hibernate.exception.LockTimeoutException;
+import org.hibernate.exception.GenericJDBCException;
 
 @Service
 public class UserService {
@@ -173,7 +187,7 @@ public class UserService {
             updateUserRoles(targetUser, userDTO.getRoles());
         }
 
-        return convertToDTO(userRepository.save(targetUser));
+        return convertToDTO(saveUserWithErrorHandling(targetUser));
     }
 
     @Transactional
@@ -195,7 +209,7 @@ public class UserService {
 
         newUser = updateUserRoles(newUser, userDTO.getRoles());
         
-        return convertToDTO(userRepository.save(newUser));
+        return convertToDTO(saveUserWithErrorHandling(newUser));
     }
 
     @Transactional
@@ -254,7 +268,6 @@ public class UserService {
     @Transactional
     public List<UserResponseDTO> createUsers(String currentUsername, List<UserRequestDTO> userRequestDTOs) {
         if (!isCurrentUserAdmin(currentUsername)) {
-            // throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
             UserResponseDTO userResponseDTO = new UserResponseDTO();
             userResponseDTO.setUsername(null);
             userResponseDTO.setMessages(ApiErrorType.FORBIDDEN_OPERATION.getMessage());
@@ -270,7 +283,7 @@ public class UserService {
         users.forEach(user -> {
             UserResponseDTO userResponseDTO = createUserResponseDTO(user);
             if (userResponseDTO.getMessages().equals(GlobalConstants.USER_SUCCESS_MESSAGE)) {
-                userRepository.save(user);
+                saveUserWithErrorHandling(user);
             }
             userResponseDTOs.add(userResponseDTO);
         });
@@ -293,7 +306,7 @@ public class UserService {
                 CompletableFuture.runAsync(() -> {
                     try {
                         if (userItemResponseDto.getStatus().equals(GlobalConstants.SUCCESS_STATUS)) {
-                            userRepository.save(user);
+                            saveUserWithErrorHandling(user);
                             logger.info("Thread {} completed saving user: {}", Thread.currentThread().getName(), user.getUsername());
                         }                        
                     } catch (Exception e) {
@@ -318,11 +331,42 @@ public class UserService {
     }
 
     @Transactional
+    public UserResponseBatchSuccessErrorDto createUsersBatchSuccessError(String currentUsername, List<UserRequestDTO> userRequestDTOs) {
+        if (!isCurrentUserAdmin(currentUsername)) {
+            throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
+        }
+        List<UserBatchErrorDto> userBatchErrorDtos = new ArrayList<>();
+        List<UserBatchSuccessfulDto> userBatchSuccessfulDtos = new ArrayList<>();
+        
+        for (UserRequestDTO userRequestDTO:userRequestDTOs) {
+            User user = createUser(userRequestDTO);
+            UserItemResponseDto userItemResponseDto = createUserItemResponseDto(user);
+            if (userItemResponseDto.getStatus().equals(GlobalConstants.SUCCESS_STATUS)) {
+                userBatchSuccessfulDtos.add(new UserBatchSuccessfulDto(user.getUsername(), user.getEmail(), user.getPassword()));
+                saveUserWithErrorHandling(user);
+                logger.info("Thread {} completed saving user: {}", Thread.currentThread().getName(), user.getUsername());
+            } else {
+                logger.info("Thread {} failed to save user: {} with error: {}", 
+                    Thread.currentThread().getName(), user.getUsername(), userItemResponseDto.getMessage());
+                userBatchErrorDtos.add(new UserBatchErrorDto(user.getUsername(), userItemResponseDto.getMessage(), HttpStatus.BAD_REQUEST));
+            }
+        }
+        UserResponseBatchSuccessErrorDto userResponseBatchSuccessErrorDto = new UserResponseBatchSuccessErrorDto();
+        userResponseBatchSuccessErrorDto.setSuccessCount(userBatchSuccessfulDtos.size());
+        userResponseBatchSuccessErrorDto.setFailureCount(userBatchErrorDtos.size());
+        userResponseBatchSuccessErrorDto.setSuccessRate(((float) userBatchSuccessfulDtos.size()) / userRequestDTOs.size() * 100);
+        userResponseBatchSuccessErrorDto.setSuccessfulUsers(userBatchSuccessfulDtos);
+        userResponseBatchSuccessErrorDto.setErrorUsers(userBatchErrorDtos);
+        return userResponseBatchSuccessErrorDto;
+    }
+
+    @Transactional
     public List<String> getPermissionByUsername(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ApiException(ApiErrorType.USER_NOT_FOUND, username));
         return user.getRoles().stream().map(Role::getRolecode).collect(Collectors.toList());
     }
+
 
     private UserItemResponseDto createUserItemResponseDto(User user) {
         UserItemResponseDto userItemResponseDto = new UserItemResponseDto();
@@ -404,6 +448,8 @@ public class UserService {
         }
         return user;
     }
+
+
 
     private List<UserExcelRequestDTO> getUserExcelRequestDTOs(MultipartFile file) {
         try {
@@ -1011,6 +1057,44 @@ public class UserService {
             return LocalDate.parse(time, formatter).atStartOfDay();
         } catch (DateTimeParseException ex) {
             throw new ApiException(ApiErrorType.USER_INVALID_INPUT);
+        }
+    }
+
+    private User saveUserWithErrorHandling(User user) {
+        try {
+            return userRepository.save(user);
+        } catch (DataAccessException e) {
+            logger.error("Database error while saving user {}: {}", user.getUsername(), e.getMessage());
+            
+            if (e instanceof TransientDataAccessException) {
+                // Handle temporary failures (connection issues, timeouts)
+                if (e.getCause() instanceof JDBCConnectionException) {
+                    throw new ApiException(ApiErrorType.DATABASE_CONNECTION_ERROR, "Database connection error occurred");
+                } else if (e.getCause() instanceof LockTimeoutException) {
+                    throw new ApiException(ApiErrorType.DATABASE_TIMEOUT_ERROR, "Database operation timed out");
+                }
+            } else if (e instanceof NonTransientDataAccessException) {
+                // Handle permanent failures (constraint violations, etc.)
+                if (e instanceof DataIntegrityViolationException) {
+                    throw new ApiException(ApiErrorType.DATABASE_CONSTRAINT_VIOLATION, "Database constraint violation occurred");
+                }
+            } else if (e instanceof JpaSystemException) {
+                throw new ApiException(ApiErrorType.DATABASE_SYSTEM_ERROR, "Database system error occurred");
+            }
+            
+            // Generic database error
+            throw new ApiException(ApiErrorType.DATABASE_ERROR, "An unexpected database error occurred");
+        } catch (TransactionSystemException e) {
+            logger.error("Transaction error while saving user {}: {}", user.getUsername(), e.getMessage());
+            throw new ApiException(ApiErrorType.TRANSACTION_ERROR, "Transaction error occurred");
+        }
+        catch (JDBCConnectionException e) {
+            logger.error("Connection failure while saving user {}: {}", user.getUsername(), e.getMessage());
+            throw new ApiException(ApiErrorType.DATABASE_CONNECTION_ERROR, "Connection failure occurred");
+        }
+        catch (Exception e) {
+            logger.error("Error while saving user {}: {}", user.getUsername(), e.getMessage());
+            throw new ApiException(ApiErrorType.DATABASE_ERROR, "An unexpected database error occurred");
         }
     }
 } 
