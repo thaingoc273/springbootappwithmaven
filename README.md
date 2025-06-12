@@ -36,3 +36,7 @@
      - [ ] Normalize ResponseDto (divide success and error messages)
      - [ ] Sending Email using Gmail server
      - [ ] Spring bean singleton, global variable
+     - [ ] java stream
+     - [ ] review lai cacs set, map trong java
+     - [ ] stack queue
+     - [ ] review code

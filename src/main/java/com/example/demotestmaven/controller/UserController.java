@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import com.example.demotestmaven.exception.ApiException;
+import com.example.demotestmaven.exception.ApiErrorType;
 import com.example.demotestmaven.exception.ValidationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -118,11 +120,16 @@ public class UserController {
     public ResponseEntity<UserResponseBatchSuccessErrorDto> createUsersBatchSuccessError(
             @RequestHeader("X-Current-User") String currentUsername,
             @RequestBody List<UserRequestDTO> userRequestDTOs) {
-        UserResponseBatchSuccessErrorDto result = userService.createUsersBatchSuccessError(currentUsername, userRequestDTOs);
-        if (result.getSuccessRate() >= 80) {
-            return ResponseEntity.ok(result);
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+        try {
+            UserResponseBatchSuccessErrorDto result = userService.createUsersBatchSuccessError(currentUsername, userRequestDTOs);
+            if (result.getSuccessRate() >= 80) {
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
+            }
+        } catch (Exception e) {
+            // return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            throw new ApiException(ApiErrorType.DATABASE_ERROR, "An unexpected database error occurred");
         }
     }
 
