@@ -127,8 +127,9 @@ public class UserController {
             } else {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(result);
             }
+        } catch (ApiException e) {
+            throw e;
         } catch (Exception e) {
-            // return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
             throw new ApiException(ApiErrorType.DATABASE_ERROR, "An unexpected database error occurred");
         }
     }

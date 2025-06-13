@@ -333,6 +333,7 @@ public class UserService {
     @Transactional
     public UserResponseBatchSuccessErrorDto createUsersBatchSuccessError(String currentUsername, List<UserRequestDTO> userRequestDTOs) {
         if (!isCurrentUserAdmin(currentUsername)) {
+            logger.info("User {} is not admin", currentUsername);
             throw new ApiException(ApiErrorType.FORBIDDEN_OPERATION);
         }
         List<UserBatchErrorDto> userBatchErrorDtos = new ArrayList<>();
@@ -348,7 +349,7 @@ public class UserService {
             } else {
                 logger.info("Thread {} failed to save user: {} with error: {}", 
                     Thread.currentThread().getName(), user.getUsername(), userItemResponseDto.getMessage());
-                userBatchErrorDtos.add(new UserBatchErrorDto(user.getUsername(), userItemResponseDto.getMessage(), HttpStatus.BAD_REQUEST));
+                userBatchErrorDtos.add(new UserBatchErrorDto(user.getUsername(), userItemResponseDto.getMessage()));
             }
         }
         UserResponseBatchSuccessErrorDto userResponseBatchSuccessErrorDto = new UserResponseBatchSuccessErrorDto();
@@ -1046,9 +1047,14 @@ public class UserService {
     }
 
     boolean isCurrentUserAdmin(String username) {
+        
         List<Role> roles = roleRepository.findByUser_Username(username);
+        if(roles == null || roles.isEmpty()) {
+            throw new ApiException(ApiErrorType.USER_NOT_FOUND, username);
+        }
         return roles.stream()
-                .anyMatch(role -> "ADMIN".equals(role.getRolecode()));
+            .anyMatch(role -> "ADMIN".equals(role.getRolecode()));          
+
     }
 
     private LocalDateTime convertToLocalDateTime(String time) {         
