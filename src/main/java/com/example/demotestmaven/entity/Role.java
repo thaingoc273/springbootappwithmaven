@@ -1,53 +1,51 @@
 package com.example.demotestmaven.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
 import java.time.LocalDateTime;
-import java.util.UUID;
-
+import lombok.Data;
 import org.hibernate.annotations.UuidGenerator;
 
 @Data
 @Entity
 @Table(name = "role")
 public class Role {
-    
-    @Id
-    @GeneratedValue
-    @UuidGenerator
-    @Column(columnDefinition = "VARCHAR(36)", nullable = false)
-    private String id; 
 
-    @Column(nullable = false, length = 50)
-    private String rolecode;
+  @Id
+  @GeneratedValue
+  @UuidGenerator
+  @Column(columnDefinition = "VARCHAR(36)", nullable = false)
+  private String id;
 
-    @Column(nullable = false, length = 50)
-    private String roletype;
+  @Column(nullable = false, length = 50)
+  private String rolecode;
 
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+  @Column(nullable = false, length = 50)
+  private String roletype;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+  @Column(name = "created_at")
+  private LocalDateTime createdAt;
 
-    @Column(name = "created_at_local")
-    private LocalDateTime createdAtLocal;
+  @Column(name = "updated_at")
+  private LocalDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "username", referencedColumnName = "username", nullable = false)
-    private User user;
+  @Column(name = "created_at_local")
+  private LocalDateTime createdAtLocal;
 
-    @PrePersist
-    protected void onCreate() {
-        // id = UUID.randomUUID().toString();
-        LocalDateTime now = LocalDateTime.now();
-        createdAt = now;
-        updatedAt = now;
-        createdAtLocal = now.plusHours(2);
-    }
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "username", referencedColumnName = "username", nullable = false)
+  private User user;
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
-} 
+  @PrePersist
+  protected void onCreate() {
+    // id = UUID.randomUUID().toString();
+    LocalDateTime now = LocalDateTime.now();
+    createdAt = now;
+    updatedAt = now;
+    createdAtLocal = now.plusHours(2);
+  }
+
+  @PreUpdate
+  protected void onUpdate() {
+    updatedAt = LocalDateTime.now();
+  }
+}

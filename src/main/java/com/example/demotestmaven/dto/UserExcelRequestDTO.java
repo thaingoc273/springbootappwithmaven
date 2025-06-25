@@ -8,10 +8,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserExcelRequestDTO {
-    private String rowNumber;
-    private String username;
-    private String password;
-    private String email;
-    private String rolecodes;
-    private String roletypes;
+  private String rowNumber;
+  private String username;
+  private String password;
+  private String email;
+  private String rolecodes;
+  private String roletypes;
 }

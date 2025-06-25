@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class RoleNewDTO {
-    String rolecode;
-    String roletype;
+  String rolecode;
+  String roletype;
 }

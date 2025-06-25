@@ -17,38 +17,39 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/api/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // .anyRequest().authenticated()
-                .anyRequest().permitAll()
-            )
-            .httpBasic(basic -> {});
-        return http.build();
-    }
+  @Bean
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http.csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(
+            auth ->
+                auth.requestMatchers("/", "/api/**", "/swagger-ui/**", "/v3/api-docs/**")
+                    .permitAll()
+                    // .anyRequest().authenticated()
+                    .anyRequest()
+                    .permitAll())
+        .httpBasic(basic -> {});
+    return http.build();
+  }
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+  @Bean
+  public PasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+  }
 
-    @Bean
-    public UserDetailsService userDetailsService() {
-        UserDetails user = User.builder()
+  @Bean
+  public UserDetailsService userDetailsService() {
+    UserDetails user =
+        User.builder()
             .username("admin")
             .password(passwordEncoder().encode("admin"))
             .roles("ADMIN")
             .build();
 
-        return new InMemoryUserDetailsManager(user);
-    }
+    return new InMemoryUserDetailsManager(user);
+  }
 
-    @Bean
-    public WebSecurityCustomizer webSecurityCustomizer() {
-        return (web) -> web.ignoring()
-          .requestMatchers("/swagger-ui/**", "/v3/api-docs*/**");
-    }
-} 
+  @Bean
+  public WebSecurityCustomizer webSecurityCustomizer() {
+    return (web) -> web.ignoring().requestMatchers("/swagger-ui/**", "/v3/api-docs*/**");
+  }
+}

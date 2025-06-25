@@ -4,9 +4,8 @@ import lombok.Data;
 
 @Data
 public class PopulationCountDTO {
-    private String year;
-    private String value;
-    private String sex;
-    private String reliabilty;
-    
-} 
+  private String year;
+  private String value;
+  private String sex;
+  private String reliabilty;
+}
