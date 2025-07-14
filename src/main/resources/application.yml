@@ -2,10 +2,16 @@ spring:
   application:
     name: demotestmaven
   datasource:
-    url: jdbc:mysql://localhost:3307/demotestmaven?useSSL=false&allowPublicKeyRetrieval=true
-    username: demouser
-    password: demopassword
+    # url: jdbc:mysql://localhost:3307/demotestmaven?useSSL=false&allowPublicKeyRetrieval=true
+    # username: demouser
+    # password: demopassword
+    url: jdbc:mysql://db-test.cjkocssqm352.eu-central-1.rds.amazonaws.com:3306/testdb
+    username: root
+    password: Linhhiep273
     driver-class-name: com.mysql.cj.jdbc.Driver
+  docker:
+    compose:
+      enabled: true
   jpa:
     hibernate:
       ddl-auto: validate
@@ -22,6 +28,7 @@ spring:
   jackson:
     date-format: yyyy-MM-dd'T'HH:mm:ss.SSS'Z'
     time-zone: UTC
+
 server:
   port: 8082
 logging:
