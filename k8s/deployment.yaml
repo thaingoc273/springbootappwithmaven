@@ -18,7 +18,7 @@ spec:
         - name: my-app-container
           image: IMAGE_PLACEHOLDER
           ports:
-            - containerPort: 8080
+            - containerPort: 8082
           env:
             - name: JAVA_OPTS
               value: "-Xms256m -Xmx512m"
@@ -34,4 +34,4 @@ spec:
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 8080 
+      targetPort: 8082 
