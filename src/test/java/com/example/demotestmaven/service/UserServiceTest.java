@@ -171,27 +171,27 @@ class UserServiceTest {
     verify(userRepository, times(1)).findByUsername("nonexistent");
   }
 
-  // @Test
-  // void updateUser_WhenUserEditsOwnProfile_ShouldUpdateSuccessfully() {
-  //   // Arrange
-  //   String username = "testuser";
-  //   UserDTO updateDTO = new UserDTO();
-  //   updateDTO.setUsername(username);
-  //   updateDTO.setEmail("updated@example.com");
-  //   updateDTO.setPassword("newPassword");
+  @Test
+  void updateUser_WhenUserEditsOwnProfile_ShouldUpdateSuccessfully() {
+    // Arrange
+    String username = "testuser";
+    UserDTO updateDTO = new UserDTO();
+    updateDTO.setUsername(username);
+    updateDTO.setEmail("updated@example.com");
+    updateDTO.setPassword("newPassword");
 
-  //   when(userRepository.findByUsername(username)).thenReturn(Optional.of(testUser));
-  //   // when(passwordEncoder.encode(any())).thenReturn("encodedNewPassword");
-  //   when(userRepository.save(any(User.class))).thenReturn(testUser);
+    when(userRepository.findByUsername(username)).thenReturn(Optional.of(testUser));
+    // when(passwordEncoder.encode(any())).thenReturn("encodedNewPassword");
+    when(userRepository.save(any(User.class))).thenReturn(testUser);
 
-  //   // Act
-  //   UserDTO result = userService.updateUser(username, username, updateDTO);
+    // Act
+    UserDTO result = userService.updateUser(username, username, updateDTO);
 
-  //   // Assert
-  //   assertNotNull(result);
-  //   verify(userRepository, times(2)).findByUsername(username);
-  //   verify(userRepository, times(1)).save(any(User.class));
-  // }
+    // Assert
+    assertNotNull(result);
+    verify(userRepository, times(2)).findByUsername(username);
+    verify(userRepository, times(1)).save(any(User.class));
+  }
 
   @Test
   void updateUser_WhenAdminEditsUser_ShouldUpdateSuccessfully() {
